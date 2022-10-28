@@ -20,3 +20,17 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <sys/wait.h>
+
+char* string_encrypt(char *string_in){
+    char * string_out;
+    
+    return (string_out);
+}
+
+int main(){
+    char a = 'e';
+    a += 4;
+    printf("%c\n",a);
+
+    return(0);
+};
