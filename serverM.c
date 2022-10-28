@@ -21,27 +21,36 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 
+/**
+ * @brief encrypt the input string based on the requirement
+ *
+ * @param string_in the string going to be encrpyted. should be less than length 50
+ * @return char*  the excrypted string
+ */
 char *string_encrypt(char *string_in)
 {
     char *string_out = malloc(sizeof(char) * 50);
-    free(string_out);
+    free(string_out); // celar the pervious data in memory
     string_out = malloc(sizeof(char) * 50);
     char alphbet[60] = "abcdefghijklmnopqrstuvwxyzABECDFGHIJKLMNOPQRSTUVWXYZ";
     char alphbet_last_four[10] = "wxyzWXZY";
     char number[10] = "0123456789";
-    char number_last_four[5] = "67890";
+    char number_last_four[5] = "7890";
     int i = 0;
     char char_i;
     char str_i_old[2] = "\0";
     char str_i_new[2] = "\0";
     for (i = 0; i < strlen(string_in); i++)
     {
+        // read the char, and covert to string
         char_i = string_in[i];
         str_i_new[0] = char_i + 4;
         str_i_old[0] = char_i;
-        if (strstr(alphbet, str_i_old))
+
+        if (strstr(alphbet, str_i_old)) // alphbet offest
         {
-            if (strstr(alphbet_last_four, str_i_old))
+
+            if (strstr(alphbet_last_four, str_i_old)) // the loopback alphbet offest
             {
                 switch (char_i)
                 {
@@ -73,20 +82,17 @@ char *string_encrypt(char *string_in)
                     printf("error in character encryption");
                 }
             }
-            else
+            else // normal offest
             {
                 strcat(string_out, str_i_new);
             }
         }
-        else if (strstr(number, str_i_old))
+        else if (strstr(number, str_i_old)) // number offest
         {
-            if (strstr(number_last_four, str_i_old))
+            if (strstr(number_last_four, str_i_old)) // loopback offest
             {
                 switch (char_i)
                 {
-                case '6':
-                    strcat(string_out, "0");
-                    break;
                 case '7':
                     strcat(string_out, "1");
                     break;
@@ -103,17 +109,19 @@ char *string_encrypt(char *string_in)
                     strcat(string_out, "_");
                 }
             }
-            else
+            else //normal offset
             {
                 strcat(string_out, str_i_new);
             }
         }
-        else
+        else // no offest on special characters
         {
             strcat(string_out, str_i_old);
         }
-        printf("char is%c__%s___%s\n", char_i, str_i_old, str_i_new);
-        printf("%s\n\n", string_out);
+
+        //debug log
+        // printf("char is%c__%s___%s\n", char_i, str_i_old, str_i_new);
+        // printf("%s\n\n", string_out);
     }
     return (string_out);
 }
