@@ -22,33 +22,34 @@
 #include <sys/wait.h>
 
 /**
- * @brief The node for storing the user information.
+ * @brief The user_node for storing the user information.
  * linked list will be used for storing user information
- *
+ * @param username the username of the account
+ * @param password the password of the account
  */
-struct node
+struct user_node
 {
     char username[50];
     char password[50];
-    struct node *next;
+    struct user_node *next;
 };
 
-struct node *head;
-struct node *current;
+struct user_node *head;
+struct user_node *current;
 
 /**
- * @brief append the new node to the begining of the linked list
+ * @brief append the new user_node to the begining of the linked list
  *
- * @param username_in String max_len = 50 input username.
- * @param password_in String max_len = 50 input password.
+ * @param username_in string. max_len = 50 input username.
+ * @param password_in string. max_len = 50 input password.
  */
-void append_front(char username_in[50], char password_in[50])
+void auth_append_front(char username_in[50], char password_in[50])
 {
-    struct node *tempNode = (struct node *)malloc(sizeof(struct node));
-    strlcpy(tempNode->username, username_in, 50);
-    strlcpy(tempNode->password, password_in, 50);
-    tempNode->next = head;
-    head = tempNode;
+    struct user_node *tempuser_node = (struct user_node *)malloc(sizeof(struct user_node));
+    strlcpy(tempuser_node->username, username_in, 50);
+    strlcpy(tempuser_node->password, password_in, 50);
+    tempuser_node->next = head;
+    head = tempuser_node;
 };
 /**
  * @brief delete the linked list and free all memory allocated to it
@@ -72,7 +73,7 @@ void delete_list()
  */
 void print_all()
 {
-    struct node *temp = head;
+    struct user_node *temp = head;
     while (temp != NULL)
     {
         current = temp;
@@ -93,10 +94,11 @@ void print_all()
  */
 int check_username(char *username_in, char *password_in)
 {
-    while (head != NULL)
+    struct user_node *temp = head;
+    while (temp != NULL)
     {
-        current = head;
-        head = head->next;
+        current = temp;
+        temp = temp->next;
         if (strcmp(current->username, username_in) == 0)
         {
             if (strcmp(current->password, password_in) == 0)
@@ -131,11 +133,19 @@ int main()
         };
         // printf("%s  user\n", username_buff);
         // printf("%s  pass\n", password_buff);
-        append_front(username_buff, password_buff);
+        auth_append_front(username_buff, password_buff);
     }
+    fclose(cred_file);
     print_all();
-    result = check_username("eqfiav", "Xl!v7si8w");
+    result = check_username("eqfiv", "Xl!v7si8w");
+    printf("%d \n", result);
+    result = check_username("1", "Xl!2");
+    printf("%d \n", result);
+    result = check_username("eqfiv", "Xl!2");
+    printf("%d \n", result);
+    result = check_username("vskiv", "gSrxve8@tswmxmz5i");
+    printf("%d \n", result);
+    result = check_username("eqf8iv", "Xl!v7si8w");
     printf("%d \n", result);
     delete_list();
-    fclose(cred_file);
 }
