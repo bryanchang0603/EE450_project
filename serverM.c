@@ -20,6 +20,11 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <sys/wait.h>
+#include <signal.h>
+
+#define TCP_port "25000048"
+#define UDP_port "24000048"
+#define BACKLOG 5
 
 /**
  * @brief encrypt the input string based on the requirement
@@ -109,7 +114,7 @@ char *string_encrypt(char *string_in)
                     strcat(string_out, "_");
                 }
             }
-            else //normal offset
+            else // normal offset
             {
                 strcat(string_out, str_i_new);
             }
@@ -119,14 +124,130 @@ char *string_encrypt(char *string_in)
             strcat(string_out, str_i_old);
         }
 
-        //debug log
-        // printf("char is%c__%s___%s\n", char_i, str_i_old, str_i_new);
-        // printf("%s\n\n", string_out);
+        // debug log
+        //  printf("char is%c__%s___%s\n", char_i, str_i_old, str_i_new);
+        //  printf("%s\n\n", string_out);
     }
     return (string_out);
 }
 
+// TCP Server based on Beej's code
+
+void sigchld_handler(int s)
+{
+    int saved_errorno = errno;
+    while (waitpid(-1, NULL, WNOHANG) > 0)
+        ;
+    errno = saved_errorno;
+}
+
+/**
+ * @brief Get the in IPv4 addr object
+ *          Used Beej's code
+ *
+ * @param sa
+ * @return void*
+ */
+void *get_in_addr(struct sockaddr *sa)
+{
+    return &(((struct sockaddr_in *)sa)->sin_addr);
+}
+
 int main()
 {
+    int sockfd, new_fd; // listen on sock_fd, new connection of fd
+    struct addrinfo hints, *serverinfo, *p;
+    struct sockaddr_storage client_addr;
+    socklen_t sin_size;
+    struct sigaction sa;
+    int yes = 1;
+    char s[INET6_ADDRSTRLEN];
+    int rv;
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    if ((rv = getaddrinfo("localhost", TCP_port, &hints, &serverinfo)) != 0)
+    {
+        fprintf(stderr, "getaddrinfo :%s\n", gai_strerror(rv));
+        return 1;
+    }
+
+    printf("%d\n", (serverinfo == NULL));
+    for (p = serverinfo; p != NULL; p = p->ai_next)
+    { // bind to the first result
+        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+        {
+            perror("server: socket");
+            continue;
+        }
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
+        {
+            perror("setsockopt");
+            exit(1);
+        }
+        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1)
+        {
+            close(sockfd);
+            perror("server: bind");
+            continue;
+        }
+        break;
+    }
+
+    freeaddrinfo(serverinfo);
+
+    if (p == NULL)
+    {
+        fprintf(stderr, "server: failed to bind \n");
+        exit(1);
+    }
+
+    if (listen(sockfd, BACKLOG) == -1)
+    {
+        perror("listen");
+        exit(1);
+    }
+
+    sa.sa_handler = sigchld_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    if (sigaction(SIGCHLD, &sa, NULL) == -1)
+    {
+        perror("sigaction");
+        exit(1);
+    }
+
+    printf("server waiting for connections... \n");
+
+    while (1)
+    {
+        sin_size = sizeof client_addr;
+
+        // accepting incomming connect
+        new_fd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
+        if (new_fd == -1)
+        {
+            perror("accept");
+            continue;
+        }
+
+        inet_ntop(client_addr.ss_family, get_in_addr((struct sockaddr *)&client_addr), s, sizeof s);
+
+        printf("server: got connection form %s\n", s);
+        if (!fork())
+        {
+            close(sockfd);
+            if (send(new_fd, "hello_world", 13, 0) == -1)
+            {
+                perror("send");
+                exit(0);
+            }
+            close(new_fd);
+        }
+    }
+
     return (0);
 };
