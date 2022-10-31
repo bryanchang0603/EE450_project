@@ -23,8 +23,12 @@
 #include <signal.h>
 
 #define TCP_port "25000048"
-#define UDP_port "24000048"
+#define UDP_port_M "24000048"
+#define UDP_port_C "21000048"
+#define UDP_port_CS "22000048"
+#define UDP_port_EE "23000048"
 #define BACKLOG 5
+#define MAXBUFFER 5000
 
 /**
  * @brief encrypt the input string based on the requirement
@@ -161,7 +165,7 @@ int main()
     socklen_t sin_size;
     struct sigaction sa;
     int yes = 1;
-    char s[INET6_ADDRSTRLEN];
+    char s[INET6_ADDRSTRLEN] buff_out[MAXBUFFER], buff_in[MAXBUFFER];
     int rv;
 
     memset(&hints, 0, sizeof hints);
@@ -240,12 +244,15 @@ int main()
         if (!fork())
         {
             close(sockfd);
+            sockfd = -1;
+
             if (send(new_fd, "hello_world", 13, 0) == -1)
             {
                 perror("send");
                 exit(0);
             }
             close(new_fd);
+            exit(0);
         }
     }
 

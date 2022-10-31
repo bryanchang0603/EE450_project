@@ -4,9 +4,9 @@
  * @brief The client program of the project
  * @version 0.1
  * @date 2022-10-27
- * 
+ *
  * @copyright Copyright (c) 2022
- * 
+ *
  */
 
 #include <stdio.h>
@@ -27,26 +27,28 @@
 // the following code are form Beej's book
 /**
  * @brief Get the in addr object's IPv4 address
- * 
- * @param sa 
- * @return void* 
+ *
+ * @param sa
+ * @return void*
  */
-void *get_in_addr(struct sockaddr *sa){
-    return &(((struct sockaddr_in*)sa)->sin_addr);
+void *get_in_addr(struct sockaddr *sa)
+{
+    return &(((struct sockaddr_in *)sa)->sin_addr);
 }
 
-int main(){
+int main()
+{
     int sockfd, numbytes;
     char buf[MAXDATASIZE];
     struct addrinfo hints, *serverinfo, *p;
     int rv;
     char s[INET6_ADDRSTRLEN];
 
-    memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
-    if((rv = getaddrinfo("localhost", TCP_port, &hints, &serverinfo)) == -1){
+    if ((rv = getaddrinfo("localhost", TCP_port, &hints, &serverinfo)) == -1)
+    {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
@@ -58,7 +60,8 @@ int main(){
             perror("client: socket");
             continue;
         }
-        if((connect(sockfd, p->ai_addr, p->ai_addrlen)) == -1){
+        if ((connect(sockfd, p->ai_addr, p->ai_addrlen)) == -1)
+        {
             close(sockfd);
             perror("client: connect");
             continue;
@@ -72,4 +75,18 @@ int main(){
         exit(1);
     }
 
+    inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
+    printf("client: connecting to %s\n", s);
+
+    freeaddrinfo(serverinfo); // all done with this structure
+
+    if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1)
+    {
+        perror("recv");
+        exit(1);
+    }
+    buf[numbytes] = '\0';
+    printf("client: received '%s'\n",buf);
+    close(sockfd);
+    return 0;
 }
