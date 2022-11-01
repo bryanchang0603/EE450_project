@@ -165,8 +165,14 @@ int main()
     socklen_t sin_size;
     struct sigaction sa;
     int yes = 1;
-    char s[INET6_ADDRSTRLEN] buff_out[MAXBUFFER], buff_in[MAXBUFFER];
+    char s[INET6_ADDRSTRLEN], buff_out[MAXBUFFER], buff_in[MAXBUFFER];
     int rv;
+
+    // the following variables are for UDP connections
+    int sockfd_udp;
+    struct addrinfo hints_udp, *serverinfo_udp, *p_udp;
+    int rv_udp;
+    int numbytes_udp;
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
@@ -252,6 +258,43 @@ int main()
                 exit(0);
             }
             close(new_fd);
+
+            // client implementation for UDP
+            memset(&hints_udp, 0, sizeof hints_udp);
+            hints_udp.ai_family = AF_INET;
+            hints_udp.ai_socktype = SOCK_DGRAM;
+            if ((rv_udp = getaddrinfo("localhost", UDP_port_CS,
+                                      &hints_udp, &serverinfo_udp)) != 0)
+            {
+                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+            }
+
+            for (p_udp = serverinfo_udp; p_udp != NULL; p_udp->ai_next)
+            {
+                if ((sockfd_udp = socket(p_udp->ai_family, p_udp->ai_socktype,
+                                         p_udp->ai_protocol)) == -1)
+                {
+                    perror("udp_client: socket");
+                    continue;
+                }
+                break;
+            }
+
+            if (p_udp == NULL)
+            {
+                fprintf(stderr, "udp_client: failed to create socket\n");
+                return 2;
+            }
+            if ((numbytes_udp = sendto(sockfd_udp, "EE450", strlen("EE450"), 0,
+                                       p_udp->ai_addr, p_udp->ai_addrlen)) == -1)
+            {
+                perror("talker: sendto");
+                exit(1);
+            }
+            freeaddrinfo(serverinfo_udp);
+            printf("talker: sent %d bytes to %s\n", numbytes_udp, "localhost");
+            close(sockfd_udp);
+
             exit(0);
         }
     }

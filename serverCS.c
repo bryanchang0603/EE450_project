@@ -21,6 +21,9 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 
+#define UDP_port_CS "22000048"
+#define MAXBUFFER 5000
+
 /**
  * @brief the user_node for storing the course information
  * @param course_code the course code of the course
@@ -67,11 +70,11 @@ void CS_append_front(char course_code_in[50], char credit_in[10], char professor
                      char lecture_day_in[50], char course_name_in[50])
 {
     struct cs_course_node *temp_cs_node = (struct cs_course_node *)malloc(sizeof(struct cs_course_node));
-    strlcpy(temp_cs_node->course_code, course_code_in, 50);
-    strlcpy(temp_cs_node->credit, credit_in, 50);
-    strlcpy(temp_cs_node->professor, professor_in, 50);
-    strlcpy(temp_cs_node->lecture_day, lecture_day_in, 50);
-    strlcpy(temp_cs_node->course_name, course_name_in, 50);
+    strcpy(temp_cs_node->course_code, course_code_in);
+    strcpy(temp_cs_node->credit, credit_in);
+    strcpy(temp_cs_node->professor, professor_in);
+    strcpy(temp_cs_node->lecture_day, lecture_day_in);
+    strcpy(temp_cs_node->course_name, course_name_in);
     temp_cs_node->next = head;
     head = temp_cs_node;
 };
@@ -144,11 +147,12 @@ char *multi_course_query(char *course_code_in)
     // variables for processing the input string
     char course_code[500];
     char *single_course_code;
-    strlcpy(course_code, course_code_in, 500);
+    strcpy(course_code, course_code_in);
 
     char *course_info_result; // store the result from find_course_info
 
     char *CS_query_output = (char *)malloc(sizeof(char) * 0);
+    CS_query_output[0] = '\0';
     int output_length = 0;
 
     single_course_code = strtok(course_code, " ");
@@ -160,7 +164,7 @@ char *multi_course_query(char *course_code_in)
         }
         printf("%s\n", single_course_code);
 
-        //start single course query
+        // start single course query
         temp = head;
         while (temp != NULL)
         {
@@ -170,35 +174,35 @@ char *multi_course_query(char *course_code_in)
             {
                 // appending course code
                 output_length += strlen(single_course_code) + 2;
-                CS_query_output = (char *)realloc(CS_query_output, output_length);
+                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char*)));
                 strcat(CS_query_output, single_course_code);
                 strcat(CS_query_output, ":");
 
-                //appending course unit
+                // appending course unit
                 course_info_result = find_course_info(single_course_code, "Credit");
                 output_length += strlen(course_info_result + 1);
-                CS_query_output = (char *)realloc(CS_query_output, output_length);
+                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char*)));
                 strcat(CS_query_output, course_info_result);
                 strcat(CS_query_output, ",");
 
-                //appending professor name
+                // appending professor name
                 course_info_result = find_course_info(single_course_code, "Professor");
                 output_length += strlen(course_info_result + 1);
-                CS_query_output = (char *)realloc(CS_query_output, output_length);
+                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char*)));
                 strcat(CS_query_output, course_info_result);
                 strcat(CS_query_output, ",");
 
-                //appending days
+                // appending days
                 course_info_result = find_course_info(single_course_code, "Days");
                 output_length += strlen(course_info_result + 1);
-                CS_query_output = (char *)realloc(CS_query_output, output_length);
+                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char*)));
                 strcat(CS_query_output, course_info_result);
                 strcat(CS_query_output, ",");
 
-                //appending course anme
+                // appending course anme
                 course_info_result = find_course_info(single_course_code, "CourseName");
                 output_length += strlen(course_info_result + 2);
-                CS_query_output = (char *)realloc(CS_query_output, output_length);
+                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char*)));
                 strcat(CS_query_output, course_info_result);
                 strcat(CS_query_output, "\n");
             }
@@ -208,7 +212,13 @@ char *multi_course_query(char *course_code_in)
     return CS_query_output;
 };
 
-int main()
+// The following code are based on Beej's code
+void *get_in_addr(struct sockaddr *sa)
+{
+    return &(((struct sockaddr_in *)sa)->sin_addr);
+}
+
+int main(int argc, char *argv[])
 {
     char cs_course_buffer[500];
     char *code_buffer, *credit_buffer, *professor_buffer,
@@ -217,6 +227,16 @@ int main()
     char *multi_query_result;
     FILE *cs_file = fopen("cs.txt", "r");
     int result = -1;
+
+    // following parameters are for UDP server
+    int sockfd;
+    struct addrinfo hints, *serverinfo, *p;
+    int rv;
+    int numbytes;
+    struct sockaddr_storage client_addr;
+    char request_buff[MAXBUFFER];
+    socklen_t addr_len;
+    char s[INET6_ADDRSTRLEN];
 
     // read by lan and store the cs course into the linked list
     while (fgets(cs_course_buffer, 500, cs_file) != NULL)
@@ -238,25 +258,87 @@ int main()
     };
     fclose(cs_file);
 
+    if (argc == 2)
+    {
+        printf("debug mode\n");
+        if (strcmp(argv[1], "read") == 0) //testing readfile
+        {
+            print_all();
+            test_result = find_course_info("CS100", "Credit");
+            printf("%s\n", test_result);
+            test_result = find_course_info("CS101", "Credit");
+            printf("%s\n", test_result);
+            test_result = find_course_info("CS100", "credit");
+            printf("%s\n", test_result);
+            test_result = find_course_info("CS100", "Professor");
+            printf("%s\n", test_result);
+            test_result = find_course_info("CS435", "Days");
+            printf("%s\n", test_result);
+            test_result = find_course_info("CS356", "CourseName");
+            printf("%s\n", test_result);
 
-    print_all();
-    test_result = find_course_info("CS100", "Credit");
-    printf("%s\n", test_result);
-    test_result = find_course_info("CS101", "Credit");
-    printf("%s\n", test_result);
-    test_result = find_course_info("CS100", "credit");
-    printf("%s\n", test_result);
-    test_result = find_course_info("CS100", "Professor");
-    printf("%s\n", test_result);
-    test_result = find_course_info("CS435", "Days");
-    printf("%s\n", test_result);
-    test_result = find_course_info("CS356", "CourseName");
-    printf("%s\n", test_result);
+            multi_query_result = multi_course_query("CS100 0 CS310");
+            printf("%s", multi_query_result);
+            free(multi_query_result);
+            //freeing not used pointer
+        }
+    }
 
-    multi_query_result = multi_course_query("CS100 0 CS310");
-    printf("%s", multi_query_result);
-    free(multi_query_result);
-        //freeing not used pointer
+    // setting up UDP server
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    if ((rv = getaddrinfo("localhost", UDP_port_CS, &hints, &serverinfo)) != 0)
+    {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        return 1;
+    }
+    for (p = serverinfo; p != NULL; p = p->ai_next)
+    {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype,
+                             p->ai_protocol)) == -1)
+        {
+            perror("listener: socket");
+            continue;
+        }
+
+        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1)
+        {
+            close(sockfd);
+            perror("listener: bind");
+            continue;
+        }
+
+        break;
+    }
+
+    if (p == NULL)
+    {
+        fprintf(stderr, "listener: failed to bind socket\n");
+        return 2;
+    }
+
+    freeaddrinfo(serverinfo);
+    printf("listener: waiting to recvfrom...\n");
+
+    addr_len = sizeof client_addr;
+    if ((numbytes = recvfrom(sockfd, request_buff, MAXBUFFER - 1, 0,
+                             (struct sockaddr *)&client_addr, &addr_len)) == -1)
+    {
+        perror("recvfrom");
+        exit(1);
+    }
+
+    printf("listener: got packet from %s\n",
+           inet_ntop(client_addr.ss_family,
+                     get_in_addr((struct sockaddr *)&client_addr),
+                     s, sizeof s));
+    printf("listener: packet is %d bytes long\n", numbytes);
+    request_buff[numbytes] = '\0';
+    printf("listener: packet contains \"%s\"\n", request_buff);
+    close(sockfd);
 
 
     delete_list();
