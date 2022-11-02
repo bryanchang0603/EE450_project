@@ -267,17 +267,17 @@ int main()
             hints_udp_cs.ai_family = AF_INET;
             hints_udp_cs.ai_socktype = SOCK_DGRAM;
             if ((rv_udp_cs = getaddrinfo("localhost", UDP_port_CS,
-                                         &hints_udp_cs, &serverinfo_udp_cs)) != 0)
+                                      &hints_udp_cs, &serverinfo_udp_cs)) != 0)
             {
-                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv_udp_cs));
+                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
             }
 
             for (p_udp_cs = serverinfo_udp_cs; p_udp_cs != NULL; p_udp_cs->ai_next)
             {
                 if ((sockfd_udp_cs = socket(p_udp_cs->ai_family, p_udp_cs->ai_socktype,
-                                            p_udp_cs->ai_protocol)) == -1)
+                                         p_udp_cs->ai_protocol)) == -1)
                 {
-                    perror("udp_client_cs: socket");
+                    perror("udp_client: socket");
                     continue;
                 }
                 break;
@@ -285,7 +285,7 @@ int main()
 
             if (p_udp_cs == NULL)
             {
-                fprintf(stderr, "udp_client_cs: failed to create socket\n");
+                fprintf(stderr, "udp_client: failed to create socket\n");
                 return 2;
             }
             freeaddrinfo(serverinfo_udp_cs); // CS UDP connection finish
