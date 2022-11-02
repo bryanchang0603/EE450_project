@@ -165,7 +165,7 @@ int main()
     socklen_t sin_size;
     struct sigaction sa;
     int yes = 1;
-    char s[INET6_ADDRSTRLEN] buff_out[MAXBUFFER], buff_in[MAXBUFFER];
+    char s[INET6_ADDRSTRLEN], buff_out[MAXBUFFER], buff_in[MAXBUFFER];
     int rv;
 
     memset(&hints, 0, sizeof hints);
