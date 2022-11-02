@@ -342,16 +342,15 @@ int main()
             //     exit(1);
             // }
 
-            if ((numbytes_udp_cs = sendto(sockfd_udp_cs, crypt_auth_str, strlen(crypt_auth_str), 0,
-                                            p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
+            if ((numbytes_udp_cs = sendto(sockfd_udp_cs, "EE450", strlen("EE450"), 0,
+                                       p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
             {
-                perror("auth_talker: sendto");
+                perror("talker: sendto");
                 exit(1);
             }
-
-            printf("talker: sent %d bytes to %s\n", numbytes_udp_cs, "serverCS");
-            close(sockfd_udp_auth);
+            printf("talker: sent %d bytes to %s\n", numbytes_udp_cs, "localhost");
             close(sockfd_udp_cs);
+            close(sockfd_udp_auth);
 
             close(new_fd);
             exit(0);
