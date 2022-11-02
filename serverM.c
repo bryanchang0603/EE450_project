@@ -267,7 +267,7 @@ int main()
             hints_udp_cs.ai_family = AF_INET;
             hints_udp_cs.ai_socktype = SOCK_DGRAM;
             if ((rv_udp_cs = getaddrinfo("localhost", UDP_port_CS,
-                                      &hints_udp_cs, &serverinfo_udp_cs)) != 0)
+                                         &hints_udp_cs, &serverinfo_udp_cs)) != 0)
             {
                 fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
             }
@@ -275,7 +275,7 @@ int main()
             for (p_udp_cs = serverinfo_udp_cs; p_udp_cs != NULL; p_udp_cs->ai_next)
             {
                 if ((sockfd_udp_cs = socket(p_udp_cs->ai_family, p_udp_cs->ai_socktype,
-                                         p_udp_cs->ai_protocol)) == -1)
+                                            p_udp_cs->ai_protocol)) == -1)
                 {
                     perror("udp_client: socket");
                     continue;
@@ -287,8 +287,7 @@ int main()
             {
                 fprintf(stderr, "udp_client: failed to create socket\n");
                 return 2;
-            }
-            freeaddrinfo(serverinfo_udp_cs); // CS UDP connection finish
+            }// CS UDP connection finish
 
             // start UDP connection to auth server
             memset(&hints_udp_auth, 0, sizeof hints_udp_auth);
@@ -315,8 +314,8 @@ int main()
             {
                 fprintf(stderr, "udp_client_auth: failed to create socket\n");
                 return 2;
-            }
-            freeaddrinfo(serverinfo_udp_auth); // auth UDP connection finish
+            }// auth UDP connection finish
+
 
             if ((numbytes_udp_auth = recv(new_fd, uncrypt_auth_str, MAXBUFFER - 1, 0)) == -1)
             {
@@ -343,12 +342,14 @@ int main()
             // }
 
             if ((numbytes_udp_cs = sendto(sockfd_udp_cs, "EE450", strlen("EE450"), 0,
-                                       p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
+                                          p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
             {
                 perror("talker: sendto");
                 exit(1);
             }
             printf("talker: sent %d bytes to %s\n", numbytes_udp_cs, "localhost");
+                        freeaddrinfo(serverinfo_udp_auth); 
+            freeaddrinfo(serverinfo_udp_cs); // cannot be freed early but why
             close(sockfd_udp_cs);
             close(sockfd_udp_auth);
 
