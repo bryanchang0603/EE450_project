@@ -1,6 +1,7 @@
 {
     "files.associations": {
-        "serverC.C": "cpp"
+        "serverC.C": "cpp",
+        "errno.h": "c"
     },
     "C_Cpp.errorSquiggles": "Enabled",
 }

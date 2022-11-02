@@ -21,6 +21,9 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 
+#define UDP_port_C "21048"
+#define MAXBUFFER 5000
+
 /**
  * @brief The user_node for storing the user information.
  * linked list will be used for storing user information
@@ -46,8 +49,8 @@ struct user_node *current;
 void auth_append_front(char username_in[50], char password_in[50])
 {
     struct user_node *tempuser_node = (struct user_node *)malloc(sizeof(struct user_node));
-    strlcpy(tempuser_node->username, username_in, 50);
-    strlcpy(tempuser_node->password, password_in, 50);
+    strcpy(tempuser_node->username, username_in);
+    strcpy(tempuser_node->password, password_in);
     tempuser_node->next = head;
     head = tempuser_node;
 };
@@ -114,12 +117,28 @@ int check_username(char *username_in, char *password_in)
     return (0); // user not found
 };
 
+// The following code are based on Beej's code
+void *get_in_addr(struct sockaddr *sa)
+{
+    return &(((struct sockaddr_in *)sa)->sin_addr);
+}
+
 int main()
 {
     char cred_buffer[200];
     char *username_buff, *password_buff;
     FILE *cred_file = fopen("cred.txt", "r");
     int result = -1;
+
+    // following parameters are for UDP server
+    int sockfd;
+    struct addrinfo hints, *serverinfo, *p;
+    int rv;
+    int numbytes;
+    struct sockaddr_storage client_addr;
+    char request_buff[MAXBUFFER];
+    socklen_t addr_len;
+    char s[INET6_ADDRSTRLEN];
 
     // read by line and store the username and pass into the linked list
     while (fgets(cred_buffer, 200, cred_file) != NULL)
@@ -136,16 +155,74 @@ int main()
         auth_append_front(username_buff, password_buff);
     }
     fclose(cred_file);
-    print_all();
-    result = check_username("eqfiv", "Xl!v7si8w");
-    printf("%d \n", result);
-    result = check_username("1", "Xl!2");
-    printf("%d \n", result);
-    result = check_username("eqfiv", "Xl!2");
-    printf("%d \n", result);
-    result = check_username("vskiv", "gSrxve8@tswmxmz5i");
-    printf("%d \n", result);
-    result = check_username("eqf8iv", "Xl!v7si8w");
-    printf("%d \n", result);
+
+
+    // setting up UDP server
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    if ((rv = getaddrinfo("localhost", UDP_port_C, &hints, &serverinfo)) != 0)
+    {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        return 1;
+    }
+    for (p = serverinfo; p != NULL; p = p->ai_next)
+    {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype,
+                             p->ai_protocol)) == -1)
+        {
+            perror("listener: socket");
+            continue;
+        }
+
+        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1)
+        {
+            close(sockfd);
+            perror("listener: bind");
+            continue;
+        }
+
+        break;
+    }
+
+    if (p == NULL)
+    {
+        fprintf(stderr, "listener: failed to bind socket\n");
+        return 2;
+    }
+
+    freeaddrinfo(serverinfo);
+    printf("listener: waiting to recvfrom...\n");
+
+    addr_len = sizeof client_addr;
+    if ((numbytes = recvfrom(sockfd, request_buff, MAXBUFFER - 1, 0,
+                             (struct sockaddr *)&client_addr, &addr_len)) == -1)
+    {
+        perror("recvfrom");
+        exit(1);
+    }
+
+    printf("listener: got packet from %s\n",
+           inet_ntop(client_addr.ss_family,
+                     get_in_addr((struct sockaddr *)&client_addr),
+                     s, sizeof s));
+    printf("listener: packet is %d bytes long\n", numbytes);
+    request_buff[numbytes] = '\0';
+    printf("listener: packet contains \"%s\"\n", request_buff);
+    close(sockfd);
+
+    // print_all();
+    // result = check_username("eqfiv", "Xl!v7si8w");
+    // printf("%d \n", result);
+    // result = check_username("1", "Xl!2");
+    // printf("%d \n", result);
+    // result = check_username("eqfiv", "Xl!2");
+    // printf("%d \n", result);
+    // result = check_username("vskiv", "gSrxve8@tswmxmz5i");
+    // printf("%d \n", result);
+    // result = check_username("eqf8iv", "Xl!v7si8w");
+    // printf("%d \n", result);
     delete_list();
 }

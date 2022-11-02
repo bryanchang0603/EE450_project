@@ -21,7 +21,7 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 
-#define TCP_port "25000048"
+#define TCP_port "25048"
 #define MAXDATASIZE 5000
 
 // the following code are form Beej's book
@@ -111,9 +111,9 @@ int main()
         strcpy(TCP_request_buf, username);
         strcat(TCP_request_buf, " ");
         strcat(TCP_request_buf, password);
-        // printf("%s\n", TCP_request_buf);
+        printf("%s\n", TCP_request_buf);
 
-        if (send(sockfd, "TCP_request_buf", strlen(TCP_request_buf), 0) == -1)
+        if (send(sockfd, TCP_request_buf, strlen(TCP_request_buf), 0) == -1)
         {
             perror("auth request");
             exit(0);

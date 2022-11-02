@@ -21,7 +21,7 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 
-#define UDP_port_CS "22000048"
+#define UDP_port_CS "22048"
 #define MAXBUFFER 5000
 
 /**

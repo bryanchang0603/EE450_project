@@ -22,29 +22,30 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-#define TCP_port "25000048"
-#define UDP_port_M "24000048"
-#define UDP_port_C "21000048"
-#define UDP_port_CS "22000048"
-#define UDP_port_EE "23000048"
+#define TCP_port "25048"
+#define UDP_port_M "24048"
+#define UDP_port_C "21048"
+#define UDP_port_CS "22048"
+#define UDP_port_EE "23048"
 #define BACKLOG 5
 #define MAXBUFFER 5000
 
 /**
  * @brief encrypt the input string based on the requirement
  *
- * @param string_in the string going to be encrpyted. should be less than length 50
+ * @param string_in the string going to be encrpyted. should be less than length 150
  * @return char*  the excrypted string
  */
 char *string_encrypt(char *string_in)
 {
-    char *string_out = malloc(sizeof(char) * 50);
+    char *string_out = malloc(sizeof(char) * 150);
     free(string_out); // celar the pervious data in memory
-    string_out = malloc(sizeof(char) * 50);
+    string_out = malloc(sizeof(char) * 150);
+    strcpy(string_out, "");
     char alphbet[60] = "abcdefghijklmnopqrstuvwxyzABECDFGHIJKLMNOPQRSTUVWXYZ";
     char alphbet_last_four[10] = "wxyzWXZY";
     char number[10] = "0123456789";
-    char number_last_four[5] = "7890";
+    char number_last_four[5] = "67890";
     int i = 0;
     char char_i;
     char str_i_old[2] = "\0";
@@ -55,10 +56,9 @@ char *string_encrypt(char *string_in)
         char_i = string_in[i];
         str_i_new[0] = char_i + 4;
         str_i_old[0] = char_i;
-
+        printf("%s, %s\n", str_i_old, str_i_new);
         if (strstr(alphbet, str_i_old)) // alphbet offest
         {
-
             if (strstr(alphbet_last_four, str_i_old)) // the loopback alphbet offest
             {
                 switch (char_i)
@@ -102,6 +102,9 @@ char *string_encrypt(char *string_in)
             {
                 switch (char_i)
                 {
+                case '6':
+                    strcat(string_out, "0");
+                    break;
                 case '7':
                     strcat(string_out, "1");
                     break;
@@ -168,11 +171,18 @@ int main()
     char s[INET6_ADDRSTRLEN], buff_out[MAXBUFFER], buff_in[MAXBUFFER];
     int rv;
 
-    // the following variables are for UDP connections
-    int sockfd_udp;
-    struct addrinfo hints_udp, *serverinfo_udp, *p_udp;
-    int rv_udp;
-    int numbytes_udp;
+    // the following variables are for UDP CS connections
+    int sockfd_udp_cs;
+    struct addrinfo hints_udp_cs, *serverinfo_udp_cs, *p_udp_cs;
+    int rv_udp_cs;
+    int numbytes_udp_cs;
+
+    // the following variables are for UDP auth connections
+    int sockfd_udp_auth;
+    struct addrinfo hints_udp_auth, *serverinfo_udp_auth, *p_udp_auth;
+    int rv_udp_auth;
+    int numbytes_udp_auth;
+    char uncrypt_auth_str[150] = "\0", crypt_auth_str[150] = "";
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
@@ -252,49 +262,98 @@ int main()
             close(sockfd);
             sockfd = -1;
 
-            if (send(new_fd, "hello_world", 13, 0) == -1)
+            // start UDP connection to CS server
+            memset(&hints_udp_cs, 0, sizeof hints_udp_cs);
+            hints_udp_cs.ai_family = AF_INET;
+            hints_udp_cs.ai_socktype = SOCK_DGRAM;
+            if ((rv_udp_cs = getaddrinfo("localhost", UDP_port_CS,
+                                         &hints_udp_cs, &serverinfo_udp_cs)) != 0)
             {
-                perror("send");
-                exit(0);
-            }
-            close(new_fd);
-
-            // client implementation for UDP
-            memset(&hints_udp, 0, sizeof hints_udp);
-            hints_udp.ai_family = AF_INET;
-            hints_udp.ai_socktype = SOCK_DGRAM;
-            if ((rv_udp = getaddrinfo("localhost", UDP_port_CS,
-                                      &hints_udp, &serverinfo_udp)) != 0)
-            {
-                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv_udp_cs));
             }
 
-            for (p_udp = serverinfo_udp; p_udp != NULL; p_udp->ai_next)
+            for (p_udp_cs = serverinfo_udp_cs; p_udp_cs != NULL; p_udp_cs->ai_next)
             {
-                if ((sockfd_udp = socket(p_udp->ai_family, p_udp->ai_socktype,
-                                         p_udp->ai_protocol)) == -1)
+                if ((sockfd_udp_cs = socket(p_udp_cs->ai_family, p_udp_cs->ai_socktype,
+                                            p_udp_cs->ai_protocol)) == -1)
                 {
-                    perror("udp_client: socket");
+                    perror("udp_client_cs: socket");
                     continue;
                 }
                 break;
             }
 
-            if (p_udp == NULL)
+            if (p_udp_cs == NULL)
             {
-                fprintf(stderr, "udp_client: failed to create socket\n");
+                fprintf(stderr, "udp_client_cs: failed to create socket\n");
                 return 2;
             }
-            if ((numbytes_udp = sendto(sockfd_udp, "EE450", strlen("EE450"), 0,
-                                       p_udp->ai_addr, p_udp->ai_addrlen)) == -1)
+            freeaddrinfo(serverinfo_udp_cs); // CS UDP connection finish
+
+            // start UDP connection to auth server
+            memset(&hints_udp_auth, 0, sizeof hints_udp_auth);
+            hints_udp_auth.ai_family = AF_INET;
+            hints_udp_auth.ai_socktype = SOCK_DGRAM;
+            if ((rv_udp_auth = getaddrinfo("localhost", UDP_port_C,
+                                           &hints_udp_auth, &serverinfo_udp_auth)) != 0)
             {
-                perror("talker: sendto");
+                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv_udp_auth));
+            }
+
+            for (p_udp_auth = serverinfo_udp_auth; p_udp_auth != NULL; p_udp_auth->ai_next)
+            {
+                if ((sockfd_udp_auth = socket(p_udp_auth->ai_family, p_udp_auth->ai_socktype,
+                                              p_udp_auth->ai_protocol)) == -1)
+                {
+                    perror("udp_client_auth: socket");
+                    continue;
+                }
+                break;
+            }
+
+            if (p_udp_auth == NULL)
+            {
+                fprintf(stderr, "udp_client_auth: failed to create socket\n");
+                return 2;
+            }
+            freeaddrinfo(serverinfo_udp_auth); // auth UDP connection finish
+
+            if ((numbytes_udp_auth = recv(new_fd, uncrypt_auth_str, MAXBUFFER - 1, 0)) == -1)
+            {
+                perror("auth recv");
                 exit(1);
             }
-            freeaddrinfo(serverinfo_udp);
-            printf("talker: sent %d bytes to %s\n", numbytes_udp, "localhost");
-            close(sockfd_udp);
+            uncrypt_auth_str[numbytes_udp_auth] = '\0';
+            memset(crypt_auth_str, 0, sizeof crypt_auth_str);
+            strcpy(crypt_auth_str, string_encrypt(uncrypt_auth_str));
 
+            if ((numbytes_udp_auth = sendto(sockfd_udp_auth, crypt_auth_str, strlen(crypt_auth_str), 0,
+                                            p_udp_auth->ai_addr, p_udp_auth->ai_addrlen)) == -1)
+            {
+                perror("auth_talker: sendto");
+                exit(1);
+            }
+            printf("talker: sent %d bytes to %s\n", numbytes_udp_auth, "serverC");
+
+            // if ((numbytes_udp_cs = sendto(sockfd_udp_cs, "EE450", strlen("EE450"), 0,
+            //                               p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
+            // {
+            //     perror("cs_talker: sendto");
+            //     exit(1);
+            // }
+
+            if ((numbytes_udp_cs = sendto(sockfd_udp_cs, crypt_auth_str, strlen(crypt_auth_str), 0,
+                                            p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
+            {
+                perror("auth_talker: sendto");
+                exit(1);
+            }
+
+            printf("talker: sent %d bytes to %s\n", numbytes_udp_cs, "serverCS");
+            close(sockfd_udp_auth);
+            close(sockfd_udp_cs);
+
+            close(new_fd);
             exit(0);
         }
     }
