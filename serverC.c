@@ -95,7 +95,7 @@ void print_all()
  *              2 indicates password missmatch
  *              0 indicates username did not found
  */
-int check_username(char *username_in, char *password_in)
+char *check_username(char *username_in, char *password_in)
 {
     struct user_node *temp = head;
     while (temp != NULL)
@@ -106,15 +106,15 @@ int check_username(char *username_in, char *password_in)
         {
             if (strcmp(current->password, password_in) == 0)
             {
-                return (1); // pass
+                return ("pass"); // pass
             }
             else
             {
-                return (2); // password mismatch
+                return ("password mismatch"); // password mismatch
             };
         }
     };
-    return (0); // user not found
+    return ("user not found"); // user not found
 };
 
 // The following code are based on Beej's code
@@ -126,6 +126,7 @@ void *get_in_addr(struct sockaddr *sa)
 int main()
 {
     char cred_buffer[200];
+    char auth_result[50];
     char *username_buff, *password_buff;
     FILE *cred_file = fopen("cred.txt", "r");
     int result = -1;
@@ -155,7 +156,6 @@ int main()
         auth_append_front(username_buff, password_buff);
     }
     fclose(cred_file);
-
 
     // setting up UDP server
     memset(&hints, 0, sizeof hints);
@@ -197,20 +197,35 @@ int main()
     printf("listener: waiting to recvfrom...\n");
 
     addr_len = sizeof client_addr;
-    if ((numbytes = recvfrom(sockfd, request_buff, MAXBUFFER - 1, 0,
-                             (struct sockaddr *)&client_addr, &addr_len)) == -1)
+    while (1)
     {
-        perror("recvfrom");
-        exit(1);
-    }
+        if ((numbytes = recvfrom(sockfd, request_buff, MAXBUFFER - 1, 0,
+                                 (struct sockaddr *)&client_addr, &addr_len)) == -1)
+        {
+            perror("recvfrom");
+            exit(1);
+        }
 
-    printf("listener: got packet from %s\n",
-           inet_ntop(client_addr.ss_family,
-                     get_in_addr((struct sockaddr *)&client_addr),
-                     s, sizeof s));
-    printf("listener: packet is %d bytes long\n", numbytes);
-    request_buff[numbytes] = '\0';
-    printf("listener: packet contains \"%s\"\n", request_buff);
+        printf("listener: got packet from %s\n",
+               inet_ntop(client_addr.ss_family,
+                         get_in_addr((struct sockaddr *)&client_addr),
+                         s, sizeof s));
+        printf("listener: packet is %d bytes long\n", numbytes);
+        request_buff[numbytes] = '\0';
+        username_buff = strtok(request_buff, " ");
+        password_buff = strtok(NULL, "");
+        printf("%s  user\n", username_buff);
+        printf("%s  pass\n", password_buff);
+        
+        strcpy(auth_result, check_username(username_buff, password_buff));
+        if ((numbytes = sendto(sockfd, auth_result, strlen(auth_result), MSG_CONFIRM,
+                               (struct sockaddr *)&client_addr, addr_len)) == -1)
+        {
+            perror("auth_talker: sendto");
+            exit(1);
+        }
+    };
+
     close(sockfd);
 
     // print_all();

@@ -111,7 +111,6 @@ int main()
         strcpy(TCP_request_buf, username);
         strcat(TCP_request_buf, " ");
         strcat(TCP_request_buf, password);
-        printf("%s\n", TCP_request_buf);
 
         if (send(sockfd, TCP_request_buf, strlen(TCP_request_buf), 0) == -1)
         {
@@ -126,7 +125,8 @@ int main()
         }
         if (strcmp(buf, "pass") != 0)
         {
-            printf("incorrect username or password, please try again\n");
+            printf("incorrect username or password, please try again %s\n", buf);
+            auth_attempt += 1;
         }
         else
         {

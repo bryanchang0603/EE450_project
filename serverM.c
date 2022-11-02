@@ -56,7 +56,7 @@ char *string_encrypt(char *string_in)
         char_i = string_in[i];
         str_i_new[0] = char_i + 4;
         str_i_old[0] = char_i;
-        printf("%s, %s\n", str_i_old, str_i_new);
+        // printf("%s, %s\n", str_i_old, str_i_new);
         if (strstr(alphbet, str_i_old)) // alphbet offest
         {
             if (strstr(alphbet_last_four, str_i_old)) // the loopback alphbet offest
@@ -183,6 +183,9 @@ int main()
     int rv_udp_auth;
     int numbytes_udp_auth;
     char uncrypt_auth_str[150] = "\0", crypt_auth_str[150] = "";
+    struct sockaddr_storage server_addr_C;
+    socklen_t addr_len;
+    addr_len = sizeof server_addr_C;
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
@@ -287,7 +290,7 @@ int main()
             {
                 fprintf(stderr, "udp_client: failed to create socket\n");
                 return 2;
-            }// CS UDP connection finish
+            } // CS UDP connection finish
 
             // start UDP connection to auth server
             memset(&hints_udp_auth, 0, sizeof hints_udp_auth);
@@ -314,46 +317,66 @@ int main()
             {
                 fprintf(stderr, "udp_client_auth: failed to create socket\n");
                 return 2;
-            }// auth UDP connection finish
+            } // auth UDP connection finish
 
-
-            if ((numbytes_udp_auth = recv(new_fd, uncrypt_auth_str, MAXBUFFER - 1, 0)) == -1)
+            while (1)
             {
-                perror("auth recv");
-                exit(1);
-            }
-            uncrypt_auth_str[numbytes_udp_auth] = '\0';
-            memset(crypt_auth_str, 0, sizeof crypt_auth_str);
-            strcpy(crypt_auth_str, string_encrypt(uncrypt_auth_str));
+            auth_rec:
+                if ((numbytes_udp_auth = recv(new_fd, uncrypt_auth_str, MAXBUFFER - 1, 0)) == -1)
+                {
+                    perror("auth recv");
+                    exit(1);
+                }
+                if (numbytes_udp_auth == 0)
+                {
+                    goto auth_rec;
+                }
+                printf("TCP packet received:%s\n", uncrypt_auth_str);
+                uncrypt_auth_str[numbytes_udp_auth] = '\0';
+                memset(crypt_auth_str, 0, sizeof crypt_auth_str);
+                strcpy(crypt_auth_str, string_encrypt(uncrypt_auth_str));
+                if ((numbytes_udp_auth = sendto(sockfd_udp_auth, crypt_auth_str, strlen(crypt_auth_str), 0,
+                                                p_udp_auth->ai_addr, p_udp_auth->ai_addrlen)) == -1)
+                {
+                    perror("auth_talker: sendto");
+                    exit(1);
+                }
+                printf("talker: sent %d bytes to %s\n", numbytes_udp_auth, "serverC");
 
-            if ((numbytes_udp_auth = sendto(sockfd_udp_auth, crypt_auth_str, strlen(crypt_auth_str), 0,
-                                            p_udp_auth->ai_addr, p_udp_auth->ai_addrlen)) == -1)
-            {
-                perror("auth_talker: sendto");
-                exit(1);
-            }
-            printf("talker: sent %d bytes to %s\n", numbytes_udp_auth, "serverC");
+                if ((numbytes_udp_auth = recvfrom(sockfd_udp_auth, buff_in, MAXBUFFER - 1, MSG_CONFIRM,
+                                                  (struct sockaddr *)&server_addr_C, &addr_len)) == -1)
+                {
+                    perror("recvfrom");
+                    exit(1);
+                }
+                printf("auth reply received\n");
+                if (send(new_fd, buff_in, strlen(buff_in), 0) == -1)
+                {
+                    perror("auth request");
+                    exit(0);
+                }
+                printf("auth sent to client\n");
+                if (strcmp(buff_in, "pass") == 0)
+                {
+                    goto auth_success;
+                    break;
+                }
+            };
 
-            // if ((numbytes_udp_cs = sendto(sockfd_udp_cs, "EE450", strlen("EE450"), 0,
-            //                               p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
-            // {
-            //     perror("cs_talker: sendto");
-            //     exit(1);
-            // }
-
+        auth_success:
             if ((numbytes_udp_cs = sendto(sockfd_udp_cs, "EE450", strlen("EE450"), 0,
                                           p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
             {
                 perror("talker: sendto");
                 exit(1);
             }
-            printf("talker: sent %d bytes to %s\n", numbytes_udp_cs, "localhost");
-                        freeaddrinfo(serverinfo_udp_auth); 
+            printf("talker: sent %d bytes to %s\n", numbytes_udp_cs, "serverCS");
+            freeaddrinfo(serverinfo_udp_auth);
             freeaddrinfo(serverinfo_udp_cs); // cannot be freed early but why
             close(sockfd_udp_cs);
             close(sockfd_udp_auth);
-
             close(new_fd);
+            printf("socket closed");
             exit(0);
         }
     }
