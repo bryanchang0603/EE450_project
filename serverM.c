@@ -322,6 +322,7 @@ int main()
             while (1)
             {
             auth_rec:
+                strcpy(uncrypt_auth_str, "\0");
                 if ((numbytes_udp_auth = recv(new_fd, uncrypt_auth_str, MAXBUFFER - 1, 0)) == -1)
                 {
                     perror("auth recv");
@@ -342,21 +343,21 @@ int main()
                     exit(1);
                 }
                 printf("talker: sent %d bytes to %s\n", numbytes_udp_auth, "serverC");
-
-                if ((numbytes_udp_auth = recvfrom(sockfd_udp_auth, buff_in, MAXBUFFER - 1, MSG_CONFIRM,
+                if ((numbytes_udp_auth = recvfrom(sockfd_udp_auth, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
                                                   (struct sockaddr *)&server_addr_C, &addr_len)) == -1)
                 {
                     perror("recvfrom");
                     exit(1);
                 }
+                buff_out[numbytes_udp_auth] = '\0';
                 printf("auth reply received\n");
-                if (send(new_fd, buff_in, strlen(buff_in), 0) == -1)
+                if (send(new_fd, buff_out, strlen(buff_out), 0) == -1)
                 {
                     perror("auth request");
                     exit(0);
                 }
                 printf("auth sent to client\n");
-                if (strcmp(buff_in, "pass") == 0)
+                if (strcmp(buff_out, "pass") == 0)
                 {
                     goto auth_success;
                     break;
@@ -364,13 +365,75 @@ int main()
             };
 
         auth_success:
-            if ((numbytes_udp_cs = sendto(sockfd_udp_cs, "EE450", strlen("EE450"), 0,
-                                          p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
-            {
-                perror("talker: sendto");
-                exit(1);
-            }
             printf("talker: sent %d bytes to %s\n", numbytes_udp_cs, "serverCS");
+            while (1)
+            {
+            query_start:
+                if ((numbytes_udp_cs = recv(new_fd, buff_in, MAXBUFFER - 1, 0)) == -1)
+                {
+                    perror("auth recv");
+                    exit(1);
+                }
+                if (numbytes_udp_cs == 0)
+                {
+                    goto auth_rec;
+                }
+                printf("TCP packet received:%s\n", buff_in);
+                buff_in[numbytes_udp_cs] = '\0';
+                if (strstr(buff_in, " ") == NULL) // currently only CS query, need to add EE query
+                {
+                    if (strstr(buff_in, "CS") != NULL)
+                    {
+                        if ((numbytes_udp_cs = sendto(sockfd_udp_cs, buff_in, strlen(buff_in), 0,
+                                                      p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
+                        {
+                            perror("cs_talker: sendto");
+                            exit(1);
+                        }
+                        printf("talker: sent %d bytes to %s\n", numbytes_udp_cs, "serverCS");
+
+                        if ((numbytes_udp_cs = recvfrom(sockfd_udp_cs, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
+                                                        (struct sockaddr *)&server_addr_C, &addr_len)) == -1)
+                        {
+                            perror("recvfrom");
+                            exit(1);
+                        }
+                        printf("CS category query received\n");
+                        buff_out[numbytes_udp_cs] = '\0';
+                        if (send(new_fd, buff_out, strlen(buff_out), 0) == -1)
+                        {
+                            perror("auth request");
+                            exit(0);
+                        }
+                        printf("CS category query sent to client\n");
+                    }
+                }
+                else
+                {
+                    if ((numbytes_udp_cs = sendto(sockfd_udp_cs, buff_in, strlen(buff_in), 0,
+                                                  p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
+                    {
+                        perror("cs_talker: sendto");
+                        exit(1);
+                    }
+                    printf("talker: sent %d bytes to %s\n", numbytes_udp_cs, "serverCS");
+
+                    if ((numbytes_udp_cs = recvfrom(sockfd_udp_cs, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
+                                                    (struct sockaddr *)&server_addr_C, &addr_len)) == -1)
+                    {
+                        perror("recvfrom");
+                        exit(1);
+                    }
+                    printf("group received\n");
+                    buff_out[numbytes_udp_cs] = '\0';
+                    if (send(new_fd, buff_out, strlen(buff_out), 0) == -1)
+                    {
+                        perror("auth request");
+                        exit(0);
+                    }
+                    printf("CS group query sent to client\n");
+                }
+            };
             freeaddrinfo(serverinfo_udp_auth);
             freeaddrinfo(serverinfo_udp_cs); // cannot be freed early but why
             close(sockfd_udp_cs);

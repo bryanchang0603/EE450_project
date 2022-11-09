@@ -39,11 +39,13 @@ void *get_in_addr(struct sockaddr *sa)
 int main()
 {
     char username[100] = "\0", password[100] = "\0";
+    char course[100] = "\0", category[50] = "\0";
     int sockfd, numbytes, auth_attempt = 0;
     char buf[MAXDATASIZE], TCP_request_buf[MAXDATASIZE];
     struct addrinfo hints, *serverinfo, *p;
     int rv;
     char s[INET6_ADDRSTRLEN];
+    char temp;
 
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
@@ -107,11 +109,10 @@ int main()
                 printf("\npassword invalid. The length must between 5 and 50 characters\n");
             }
         } while (strlen(password) < 5 || strlen(password) > 50);
-
         strcpy(TCP_request_buf, username);
         strcat(TCP_request_buf, " ");
         strcat(TCP_request_buf, password);
-
+        printf("%s| %lu\n", TCP_request_buf, strlen(TCP_request_buf));
         if (send(sockfd, TCP_request_buf, strlen(TCP_request_buf), 0) == -1)
         {
             perror("auth request");
@@ -123,6 +124,7 @@ int main()
             perror("auth recv");
             exit(1);
         }
+        buf[numbytes] = '\0';
         if (strcmp(buf, "pass") != 0)
         {
             printf("incorrect username or password, please try again %s\n", buf);
@@ -133,15 +135,63 @@ int main()
             goto auth_success;
         }
 
-        buf[numbytes] = '\0';
     } while (auth_attempt < 3);
     printf("3 attemps used, authencation failed. logging out");
     close(sockfd);
-    exit(1);//terminate the client as requested
+    exit(1); // terminate the client as requested
 
-    auth_success:
-        printf("authencation succeded");
-    
+auth_success:
+    printf("authencation succeded");
+
+    while (1)
+    {
+        //resolve stdin with pervious scanf, then, read stdin with space
+        // credit to https://www.includehelp.com/c/c-program-to-read-string-with-spaces-using-scanf-function.aspx
+        scanf("%c",&temp);  
+        printf("Please enter the course code to query\n");
+        scanf("%[^\n]", course);
+        printf("%s\n", course);
+        if (strstr(course, " ") == NULL) // single query
+        {
+            printf("Please enter the category (Credit/Professor/Days/Coursename)\n");
+            scanf("%s", category);
+            strcpy(TCP_request_buf, course);
+            strcat(TCP_request_buf, ",");
+            strcat(TCP_request_buf, category);
+
+            if (send(sockfd, TCP_request_buf, strlen(TCP_request_buf), 0) == -1)
+            {
+                perror("auth request");
+                exit(0);
+            }
+
+            if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1)
+            {
+                perror("auth recv");
+                exit(1);
+            }
+            buf[numbytes] = '\0';
+            printf("%s\n", buf);
+            // TODO add course not found
+        }
+        else
+        { // multiple query
+            strcpy(TCP_request_buf, course);
+            if (send(sockfd, TCP_request_buf, strlen(TCP_request_buf), 0) == -1)
+            {
+                perror("auth request");
+                exit(0);
+            }
+
+            if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1)
+            {
+                perror("auth recv");
+                exit(1);
+            }
+            buf[numbytes] = '\0';
+            printf("%s\n", buf);
+        }
+    }
 
     printf("client: received '%s'\n", buf);
 

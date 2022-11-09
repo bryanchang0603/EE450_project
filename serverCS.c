@@ -174,35 +174,35 @@ char *multi_course_query(char *course_code_in)
             {
                 // appending course code
                 output_length += strlen(single_course_code) + 2;
-                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char*)));
+                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char *)));
                 strcat(CS_query_output, single_course_code);
                 strcat(CS_query_output, ":");
 
                 // appending course unit
                 course_info_result = find_course_info(single_course_code, "Credit");
                 output_length += strlen(course_info_result + 1);
-                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char*)));
+                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char *)));
                 strcat(CS_query_output, course_info_result);
                 strcat(CS_query_output, ",");
 
                 // appending professor name
                 course_info_result = find_course_info(single_course_code, "Professor");
                 output_length += strlen(course_info_result + 1);
-                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char*)));
+                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char *)));
                 strcat(CS_query_output, course_info_result);
                 strcat(CS_query_output, ",");
 
                 // appending days
                 course_info_result = find_course_info(single_course_code, "Days");
                 output_length += strlen(course_info_result + 1);
-                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char*)));
+                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char *)));
                 strcat(CS_query_output, course_info_result);
                 strcat(CS_query_output, ",");
 
                 // appending course anme
                 course_info_result = find_course_info(single_course_code, "CourseName");
                 output_length += strlen(course_info_result + 2);
-                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char*)));
+                CS_query_output = realloc(CS_query_output, output_length * (sizeof(char *)));
                 strcat(CS_query_output, course_info_result);
                 strcat(CS_query_output, "\n");
             }
@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
 {
     char cs_course_buffer[500];
     char *code_buffer, *credit_buffer, *professor_buffer,
-        *lecture_day_buffer, *course_buffer;
+        *lecture_day_buffer, *course_buffer, *category_buffer;
     char *test_result;
     char *multi_query_result;
     FILE *cs_file = fopen("cs.txt", "r");
@@ -234,7 +234,7 @@ int main(int argc, char *argv[])
     int rv;
     int numbytes;
     struct sockaddr_storage client_addr;
-    char request_buff[MAXBUFFER];
+    char request_buff[MAXBUFFER], result_buff[MAXBUFFER];
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
 
@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
     if (argc == 2)
     {
         printf("debug mode\n");
-        if (strcmp(argv[1], "read") == 0) //testing readfile
+        if (strcmp(argv[1], "read") == 0) // testing readfile
         {
             print_all();
             test_result = find_course_info("CS100", "Credit");
@@ -280,7 +280,7 @@ int main(int argc, char *argv[])
             multi_query_result = multi_course_query("CS100 0 CS310");
             printf("%s", multi_query_result);
             free(multi_query_result);
-            //freeing not used pointer
+            // freeing not used pointer
         }
     }
 
@@ -324,22 +324,48 @@ int main(int argc, char *argv[])
     printf("listener: waiting to recvfrom...\n");
 
     addr_len = sizeof client_addr;
-    if ((numbytes = recvfrom(sockfd, request_buff, MAXBUFFER - 1, 0,
-                             (struct sockaddr *)&client_addr, &addr_len)) == -1)
+    while (1)
     {
-        perror("recvfrom");
-        exit(1);
+        if ((numbytes = recvfrom(sockfd, request_buff, MAXBUFFER - 1, 0,
+                                 (struct sockaddr *)&client_addr, &addr_len)) == -1)
+        {
+            perror("recvfrom");
+            exit(1);
+        }
+
+        printf("listener: got packet from %s\n",
+               inet_ntop(client_addr.ss_family,
+                         get_in_addr((struct sockaddr *)&client_addr),
+                         s, sizeof s));
+        printf("listener: packet is %d bytes long\n", numbytes);
+        request_buff[numbytes] = '\0';
+        printf("listener: packet contains \"%s\"\n", request_buff);
+        if (strstr(request_buff, ","))
+        {
+            code_buffer = strtok(request_buff, ",");
+            category_buffer = strtok(NULL, "\0");
+            printf("listener: truncated string \"%s|%s\"\n", code_buffer, category_buffer);
+            strcpy(result_buff, find_course_info(code_buffer, category_buffer));
+            if ((numbytes = sendto(sockfd, result_buff, strlen(result_buff), 0,
+                                   (struct sockaddr *)&client_addr, addr_len)) == -1)
+            {
+                perror("sendto");
+                exit(1);
+            }
+        }
+        else
+        {
+            strcpy(result_buff, multi_course_query(request_buff));
+            if ((numbytes = sendto(sockfd, result_buff, strlen(result_buff), 0,
+                                   (struct sockaddr *)&client_addr, addr_len)) == -1)
+            {
+                perror("sendto");
+                exit(1);
+            }
+        }
     }
 
-    printf("listener: got packet from %s\n",
-           inet_ntop(client_addr.ss_family,
-                     get_in_addr((struct sockaddr *)&client_addr),
-                     s, sizeof s));
-    printf("listener: packet is %d bytes long\n", numbytes);
-    request_buff[numbytes] = '\0';
-    printf("listener: packet contains \"%s\"\n", request_buff);
     close(sockfd);
-
 
     delete_list();
 }
