@@ -146,13 +146,16 @@ char *multi_course_query(char *course_code_in)
 
     // variables for processing the input string
     char course_code[500];
+    char course_code_added[500];
     char *single_course_code;
+    int course_found = 0;
     strcpy(course_code, course_code_in);
 
     char *course_info_result; // store the result from find_course_info
 
     char *CS_query_output = (char *)malloc(sizeof(char) * 0);
     CS_query_output[0] = '\0';
+    memset(course_code_added, 0 ,sizeof(course_code_added));
     int output_length = 0;
 
     single_course_code = strtok(course_code, " ");
@@ -172,6 +175,7 @@ char *multi_course_query(char *course_code_in)
             temp = temp->next;
             if (strcmp(current->course_code, single_course_code) == 0)
             {
+                strcat(course_code_added, single_course_code);
                 // appending course code
                 output_length += strlen(single_course_code) + 2;
                 CS_query_output = realloc(CS_query_output, output_length * (sizeof(char *)));
@@ -206,6 +210,27 @@ char *multi_course_query(char *course_code_in)
                 strcat(CS_query_output, course_info_result);
                 strcat(CS_query_output, "\n");
             }
+        }
+        single_course_code = strtok(NULL, " ");
+    }
+
+    strcpy(course_code, course_code_in);
+    printf("%s\n",course_code),
+    single_course_code = strtok(course_code, " ");
+    while (single_course_code != NULL)
+    {
+        if (strstr(single_course_code, "\n"))
+        {
+            single_course_code[strlen(single_course_code) - 2] = '\0';
+        }
+        printf("checking %s\n", single_course_code);
+        if (strcmp(course_code_added, single_course_code) != 0){
+            printf("|%s|\n", single_course_code);
+            output_length += 50;
+            CS_query_output = realloc(CS_query_output, output_length * (sizeof(char *)));
+            strcat(CS_query_output, "course not found: ");
+            strcat(CS_query_output, single_course_code);
+            strcat(CS_query_output, "\n");
         }
         single_course_code = strtok(NULL, " ");
     }

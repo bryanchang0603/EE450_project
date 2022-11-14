@@ -9,6 +9,8 @@
  *
  */
 
+// TODO add phase 3 for the EE server
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -168,14 +170,23 @@ int main()
     socklen_t sin_size;
     struct sigaction sa;
     int yes = 1;
-    char s[INET6_ADDRSTRLEN], buff_out[MAXBUFFER], buff_in[MAXBUFFER];
+    char s[INET6_ADDRSTRLEN], buff_out[MAXBUFFER], buff_in[MAXBUFFER], temp_buff_out[MAXBUFFER];
     int rv;
+    char temp_course_code[10], *temp_course_buff;
 
     // the following variables are for UDP CS connections
     int sockfd_udp_cs;
     struct addrinfo hints_udp_cs, *serverinfo_udp_cs, *p_udp_cs;
     int rv_udp_cs;
     int numbytes_udp_cs;
+    char multi_query_list_cs[MAXBUFFER];
+
+    // the following variables are for UDP EE connections
+    int sockfd_udp_ee;
+    struct addrinfo hints_udp_ee, *serverinfo_udp_ee, *p_udp_ee;
+    int rv_udp_ee;
+    int numbytes_udp_ee;
+    char multi_query_list_ee[MAXBUFFER];
 
     // the following variables are for UDP auth connections
     int sockfd_udp_auth;
@@ -272,7 +283,7 @@ int main()
             if ((rv_udp_cs = getaddrinfo("localhost", UDP_port_CS,
                                          &hints_udp_cs, &serverinfo_udp_cs)) != 0)
             {
-                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv_udp_cs));
             }
 
             for (p_udp_cs = serverinfo_udp_cs; p_udp_cs != NULL; p_udp_cs->ai_next)
@@ -289,6 +300,33 @@ int main()
             if (p_udp_cs == NULL)
             {
                 fprintf(stderr, "udp_client: failed to create socket\n");
+                return 2;
+            } // CS UDP connection finish
+
+            // start UDP connection to EE Server
+            memset(&hints_udp_ee, 0, sizeof hints_udp_ee);
+            hints_udp_ee.ai_family = AF_INET;
+            hints_udp_ee.ai_socktype = SOCK_DGRAM;
+            if ((rv_udp_ee = getaddrinfo("localhost", UDP_port_EE,
+                                         &hints_udp_ee, &serverinfo_udp_ee)) != 0)
+            {
+                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv_udp_ee));
+            }
+
+            for (p_udp_ee = serverinfo_udp_ee; p_udp_ee != NULL; p_udp_ee->ai_next)
+            {
+                if ((sockfd_udp_ee = socket(p_udp_ee->ai_family, p_udp_ee->ai_socktype,
+                                            p_udp_ee->ai_protocol)) == -1)
+                {
+                    perror("ee_udp_client: socket");
+                    continue;
+                }
+                break;
+            }
+
+            if (p_udp_ee == NULL)
+            {
+                fprintf(stderr, "ee_udp_client: failed to create socket\n");
                 return 2;
             } // CS UDP connection finish
 
@@ -407,37 +445,128 @@ int main()
                         }
                         printf("CS category query sent to client\n");
                     }
+                    else if (strstr(buff_in, "EE") != NULL)
+                    {
+                        if ((numbytes_udp_ee = sendto(sockfd_udp_ee, buff_in, strlen(buff_in), 0,
+                                                      p_udp_ee->ai_addr, p_udp_ee->ai_addrlen)) == -1)
+                        {
+                            perror("ee_talker: sendto");
+                            exit(1);
+                        }
+                        printf("talker: sent %d bytes to %s\n", numbytes_udp_ee, "serverCS");
+
+                        if ((numbytes_udp_ee = recvfrom(sockfd_udp_ee, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
+                                                        (struct sockaddr *)&server_addr_C, &addr_len)) == -1)
+                        {
+                            perror("recvfrom");
+                            exit(1);
+                        }
+                        printf("EE category query received\n");
+                        buff_out[numbytes_udp_ee] = '\0';
+                        if (send(new_fd, buff_out, strlen(buff_out), 0) == -1)
+                        {
+                            perror("tcp send");
+                            exit(0);
+                        }
+                        printf("ee category query sent to client\n");
+                    }
+                    else
+                    {
+                        strcpy(buff_out, "coursenot found \0");
+                        if (send(new_fd, buff_out, strlen(buff_out), 0) == -1)
+                        {
+                            perror("tcp send");
+                            exit(0);
+                        }
+                        printf("course not found sent to client\n");
+                    }
                 }
                 else
                 {
-                    if ((numbytes_udp_cs = sendto(sockfd_udp_cs, buff_in, strlen(buff_in), 0,
+                    memset(multi_query_list_cs, 0, sizeof(multi_query_list_cs));
+                    memset(multi_query_list_ee, 0, sizeof(multi_query_list_ee));
+                    memset(temp_buff_out, 0, sizeof(temp_buff_out));
+                    memset(buff_out, 0, sizeof(buff_out));
+                    temp_course_buff = strtok(buff_in, " ");
+                    while (temp_course_buff != NULL)
+                    {
+                        memset(temp_course_code, 0, sizeof(temp_course_code));
+                        strcpy(temp_course_code, temp_course_buff);
+                        if (strstr(temp_course_code, "EE") != NULL)
+                        {
+                            if (strstr(multi_query_list_ee, temp_course_code) == NULL)
+                            {
+                                strcat(multi_query_list_ee, temp_course_code);
+                                strcat(multi_query_list_ee, " ");
+                            }
+                        }
+
+                        else if (strstr(temp_course_code, "CS") != NULL)
+                        {
+                            if (strstr(multi_query_list_cs, temp_course_code) == NULL)
+                            {
+                                strcat(multi_query_list_cs, temp_course_code);
+                                strcat(multi_query_list_cs, " ");
+                            }
+                        }
+                        else
+                        {
+                            strcat(temp_buff_out, "course did not found:");
+                            strcat(temp_buff_out, temp_course_code);
+                            strcat(temp_buff_out, "\n");
+                        }
+                        temp_course_buff = strtok(NULL, " ");
+                    }
+                    printf("%s | %s | %s", multi_query_list_cs, multi_query_list_ee, buff_out);
+                    if ((numbytes_udp_cs = sendto(sockfd_udp_cs, multi_query_list_cs, strlen(multi_query_list_cs), 0,
                                                   p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
                     {
                         perror("cs_talker: sendto");
                         exit(1);
                     }
-                    printf("talker: sent %d bytes to %s\n", numbytes_udp_cs, "serverCS");
+                    printf("cs_talker: sent %d bytes to %s\n", numbytes_udp_cs, "serverCS");
 
                     if ((numbytes_udp_cs = recvfrom(sockfd_udp_cs, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
                                                     (struct sockaddr *)&server_addr_C, &addr_len)) == -1)
                     {
-                        perror("recvfrom");
+                        perror("cs_talker: recvfrom");
                         exit(1);
                     }
-                    printf("group received\n");
-                    buff_out[numbytes_udp_cs] = '\0';
+                    printf("CS group received\n");
+                    strcat(buff_out, temp_buff_out);
+
+                    if ((numbytes_udp_ee = sendto(sockfd_udp_ee, multi_query_list_ee, strlen(multi_query_list_ee), 0,
+                                                  p_udp_ee->ai_addr, p_udp_ee->ai_addrlen)) == -1)
+                    {
+                        perror("ee_talker: sendto");
+                        exit(1);
+                    }
+                    printf("ee_talker: sent %d bytes to %s\n", numbytes_udp_ee, "serverEE");
+
+                    if ((numbytes_udp_ee = recvfrom(sockfd_udp_ee, temp_buff_out, MAXBUFFER - 1, MSG_CONFIRM,
+                                                    (struct sockaddr *)&server_addr_C, &addr_len)) == -1)
+                    {
+                        perror("ee_talker: recvfrom");
+                        exit(1);
+                    }
+                    printf("EE group received\n");
+                    strcat(buff_out, temp_buff_out);
+                    buff_out[strlen(buff_out)] = '\0';
+
                     if (send(new_fd, buff_out, strlen(buff_out), 0) == -1)
                     {
-                        perror("auth request");
+                        perror("TCP group query send");
                         exit(0);
                     }
                     printf("CS group query sent to client\n");
                 }
             };
             freeaddrinfo(serverinfo_udp_auth);
-            freeaddrinfo(serverinfo_udp_cs); // cannot be freed early but why
+            freeaddrinfo(serverinfo_udp_cs);
+            freeaddrinfo(serverinfo_udp_ee); // cannot be freed early but why
             close(sockfd_udp_cs);
             close(sockfd_udp_auth);
+            close(sockfd_udp_ee);
             close(new_fd);
             printf("socket closed");
             exit(0);
