@@ -169,8 +169,9 @@ int main()
     struct sockaddr_storage client_addr;
     socklen_t sin_size;
     struct sigaction sa;
-    int yes = 1;
-    char s[INET6_ADDRSTRLEN], buff_out[MAXBUFFER], buff_in[MAXBUFFER], temp_buff_out[MAXBUFFER];
+    int yes = 1, course_code_index = 0, multi_result_found = 0;
+    char s[INET6_ADDRSTRLEN], buff_out[MAXBUFFER], buff_in[MAXBUFFER], temp_buff_out[MAXBUFFER], buff_out_ordered[MAXBUFFER];
+    char course_code_list[10][10];
     int rv;
     char temp_course_code[10], *temp_course_buff;
 
@@ -418,7 +419,7 @@ int main()
                 }
                 printf("TCP packet received:%s\n", buff_in);
                 buff_in[numbytes_udp_cs] = '\0';
-                if (strstr(buff_in, " ") == NULL) // currently only CS query, need to add EE query
+                if (strstr(buff_in, " ") == NULL) // single query
                 {
                     if (strstr(buff_in, "CS") != NULL)
                     {
@@ -481,12 +482,15 @@ int main()
                         printf("course not found sent to client\n");
                     }
                 }
-                else
+                else // multi course query
                 {
+                    course_code_index = 0;
+                    memset(course_code_list, 0, sizeof(course_code_list));
                     memset(multi_query_list_cs, 0, sizeof(multi_query_list_cs));
                     memset(multi_query_list_ee, 0, sizeof(multi_query_list_ee));
                     memset(temp_buff_out, 0, sizeof(temp_buff_out));
                     memset(buff_out, 0, sizeof(buff_out));
+                    memset(buff_out_ordered, 0, sizeof(buff_out_ordered));
                     temp_course_buff = strtok(buff_in, " ");
                     while (temp_course_buff != NULL)
                     {
@@ -498,6 +502,10 @@ int main()
                             {
                                 strcat(multi_query_list_ee, temp_course_code);
                                 strcat(multi_query_list_ee, " ");
+
+                                // for result ordering in later stage
+                                strcpy(course_code_list[course_code_index], temp_course_buff);
+                                course_code_index += 1;
                             }
                         }
 
@@ -507,6 +515,10 @@ int main()
                             {
                                 strcat(multi_query_list_cs, temp_course_code);
                                 strcat(multi_query_list_cs, " ");
+
+                                // for result ordering in later stage
+                                strcpy(course_code_list[course_code_index], temp_course_buff);
+                                course_code_index += 1;
                             }
                         }
                         else
@@ -517,6 +529,7 @@ int main()
                         }
                         temp_course_buff = strtok(NULL, " ");
                     }
+
                     printf("%s | %s | %s", multi_query_list_cs, multi_query_list_ee, buff_out);
                     if ((numbytes_udp_cs = sendto(sockfd_udp_cs, multi_query_list_cs, strlen(multi_query_list_cs), 0,
                                                   p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
@@ -552,13 +565,42 @@ int main()
                     printf("EE group received\n");
                     strcat(buff_out, temp_buff_out);
                     buff_out[strlen(buff_out)] = '\0';
+                    // ordering the buff_out based on buff_in
+                    for (int i = 0; i < 10; i++)
+                    {
+                        strcpy(temp_buff_out, buff_out);
+                        if (strlen(course_code_list[i]) != 0)
+                        {
 
-                    if (send(new_fd, buff_out, strlen(buff_out), 0) == -1)
+                            temp_course_buff = strtok(temp_buff_out, "\n");
+                            while (temp_course_buff != NULL)
+                            {
+                                if (strstr(temp_course_buff, course_code_list[i]) != NULL)
+                                {
+                                    strcat(buff_out_ordered, temp_course_buff);
+                                    strcat(buff_out_ordered, "\n");
+                                    multi_result_found = 1;
+                                }
+                                temp_course_buff = strtok(NULL, "\n");
+                            }
+                            if (!(multi_result_found))
+                            {
+                                printf("adding missing course");
+                                strcat(buff_out_ordered, "course did not found ");
+                                strcat(buff_out_ordered, course_code_list[i]);
+                                strcat(buff_out_ordered, "\n");
+                            }
+                            multi_result_found = 0;
+                        }
+                    }
+
+                    // sending ordered string to user
+                    if (send(new_fd, buff_out_ordered, strlen(buff_out_ordered), 0) == -1)
                     {
                         perror("TCP group query send");
                         exit(0);
                     }
-                    printf("CS group query sent to client\n");
+                    printf(" group query sent to client\n");
                 }
             };
             freeaddrinfo(serverinfo_udp_auth);

@@ -213,27 +213,6 @@ char *multi_course_query(char *course_code_in)
         }
         single_course_code = strtok(NULL, " ");
     }
-
-    strcpy(course_code, course_code_in);
-    printf("%s\n",course_code),
-    single_course_code = strtok(course_code, " ");
-    while (single_course_code != NULL)
-    {
-        if (strstr(single_course_code, "\n"))
-        {
-            single_course_code[strlen(single_course_code) - 2] = '\0';
-        }
-        printf("checking %s\n", single_course_code);
-        if (strcmp(course_code_added, single_course_code) != 0){
-            printf("|%s|\n", single_course_code);
-            output_length += 50;
-            CS_query_output = realloc(CS_query_output, output_length * (sizeof(char *)));
-            strcat(CS_query_output, "course not found: ");
-            strcat(CS_query_output, single_course_code);
-            strcat(CS_query_output, "\n");
-        }
-        single_course_code = strtok(NULL, " ");
-    }
     return CS_query_output;
 };
 
