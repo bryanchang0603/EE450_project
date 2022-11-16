@@ -194,7 +194,7 @@ int main()
     }
 
     freeaddrinfo(serverinfo);
-    printf("listener: waiting to recvfrom...\n");
+    printf("The ServerC is up and running using UDP on port 21048.\n");
 
     addr_len = sizeof client_addr;
     while (1)
@@ -205,17 +205,15 @@ int main()
             perror("recvfrom");
             exit(1);
         }
+        printf("The ServerC received an authentication request from the Main Server.\n");
 
-        printf("listener: got packet from %s\n",
-               inet_ntop(client_addr.ss_family,
-                         get_in_addr((struct sockaddr *)&client_addr),
-                         s, sizeof s));
-        printf("listener: packet is %d bytes long\n", numbytes);
+        // printf("listener: got packet from %s\n",
+        //        inet_ntop(client_addr.ss_family,
+        //                  get_in_addr((struct sockaddr *)&client_addr),
+        //                  s, sizeof s));
         request_buff[numbytes] = '\0';
-        username_buff = strtok(request_buff, " ");
+        username_buff = strtok(request_buff, ",");
         password_buff = strtok(NULL, "");
-        printf("%s  user\n", username_buff);
-        printf("%s  pass\n", password_buff);
         
         strcpy(auth_result, check_username(username_buff, password_buff));
         if ((numbytes = sendto(sockfd, auth_result, strlen(auth_result), MSG_CONFIRM,
@@ -224,6 +222,7 @@ int main()
             perror("auth_talker: sendto");
             exit(1);
         }
+        printf("The ServerC finished sending the response to the Main Server.\n");
     };
 
     close(sockfd);

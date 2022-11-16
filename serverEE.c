@@ -120,17 +120,33 @@ char *find_course_info(char course_code[50], char category[50])
         if (strcmp(current->course_code, course_code) == 0)
         {
             if (strcmp(category, "Credit") == 0)
+            {
+                printf("The course information has been found: The Credit of %s is %s.\n", current->course_code, current->credit);
                 return (current->credit);
+            }
             else if (strcmp(category, "Professor") == 0)
+            {
+                printf("The course information has been found: The Professor of %s is %s.\n", current->course_code, current->professor);
                 return (current->professor);
+            }
             else if (strcmp(category, "Days") == 0)
+            {
+                printf("The course information has been found: The Days of %s is %s.\n", current->course_code, current->lecture_day);
                 return (current->lecture_day);
+            }
             else if (strcmp(category, "CourseName") == 0)
+            {
+                printf("The course information has been found: The CourseName of %s is %s.\n", current->course_code, current->course_name);
                 return (current->course_name);
+            }
             else
+            {
+                printf("Find the course: %s | Didn't find the catrgory: %s\n", course_code, category);
                 return ("category_not_found");
+            }
         }
     };
+    printf("Didn't find the course: %s\n", course_code);
     return ("course_not_found");
 };
 
@@ -162,7 +178,6 @@ char *multi_course_query(char *course_code_in)
         {
             single_course_code[strlen(single_course_code) - 2] = '\0';
         }
-        printf("%s\n", single_course_code);
 
         // start single course query
         temp = head;
@@ -277,7 +292,7 @@ int main(int argc, char *argv[])
             printf("%s\n", test_result);
 
             multi_query_result = multi_course_query("EE450 0 EE658");
-            printf("%s", multi_query_result);
+            printf("%s\n", multi_query_result);
             free(multi_query_result);
             // freeing not used pointer
         }
@@ -320,8 +335,7 @@ int main(int argc, char *argv[])
         return 2;
     }
 
-
-    printf("listener: waiting to recvfrom...\n");
+    printf("The Server EE is up and running using UDP on port 23048\n");
 
     addr_len = sizeof client_addr;
 
@@ -334,18 +348,16 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
-        printf("listener: got packet from %s\n",
-               inet_ntop(client_addr.ss_family,
-                         get_in_addr((struct sockaddr *)&client_addr),
-                         s, sizeof s));
-        printf("listener: packet is %d bytes long\n", numbytes);
+        // printf("listener: got packet from %s\n",
+        //        inet_ntop(client_addr.ss_family,
+        //                  get_in_addr((struct sockaddr *)&client_addr),
+        //                  s, sizeof s));
         request_buff[numbytes] = '\0';
-        printf("listener: packet contains \"%s\"\n", request_buff);
         if (strstr(request_buff, ","))
         {
             code_buffer = strtok(request_buff, ",");
             category_buffer = strtok(NULL, "\0");
-            printf("listener: truncated string \"%s|%s\"\n", code_buffer, category_buffer);
+            printf("The Server EE received a request from the Main Server about the %s of %s\n", category_buffer, code_buffer);
             strcpy(result_buff, find_course_info(code_buffer, category_buffer));
             if ((numbytes = sendto(sockfd, result_buff, strlen(result_buff), 0,
                                    (struct sockaddr *)&client_addr, addr_len)) == -1)
@@ -353,6 +365,7 @@ int main(int argc, char *argv[])
                 perror("sendto");
                 exit(1);
             }
+            printf("The Server EE finished sending the response to the Main Server\n");
         }
         else
         {

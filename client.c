@@ -79,14 +79,13 @@ int main()
     }
 
     inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
-    printf("client: connecting to %s\n", s);
+    // printf("client: connecting to %s\n", s);
     freeaddrinfo(serverinfo); // all done with this structure
 
     printf("The client is up and running.\n");
 
     // authendaction process
     //  retriving username
-
     do
     {
         do
@@ -110,51 +109,57 @@ int main()
             }
         } while (strlen(password) < 5 || strlen(password) > 50);
         strcpy(TCP_request_buf, username);
-        strcat(TCP_request_buf, " ");
+        strcat(TCP_request_buf, ",");
         strcat(TCP_request_buf, password);
-        printf("%s| %lu\n", TCP_request_buf, strlen(TCP_request_buf));
         if (send(sockfd, TCP_request_buf, strlen(TCP_request_buf), 0) == -1)
         {
             perror("auth request");
             exit(0);
         }
+        printf("%s sent an authentication request to the main server.\n", username);
 
         if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1)
         {
             perror("auth recv");
             exit(1);
         }
+        printf("%s received the result of authentication using TCP over port %s. ", username, TCP_port);
         buf[numbytes] = '\0';
-        if (strcmp(buf, "pass") != 0)
+        if (strcmp(buf, "password mismatch") == 0)
         {
-            printf("incorrect username or password, please try again %s\n", buf);
             auth_attempt += 1;
+            printf("Authentication failed: Password does not match\n");
+        }
+        else if (strcmp(buf, "user not found") == 0)
+        {
+            auth_attempt += 1;
+            printf("Authentication failed: Username Does not exist\n");
         }
         else
         {
             goto auth_success;
         }
-
+        printf("Attempts remaining:%d\n", 3 - auth_attempt);
     } while (auth_attempt < 3);
-    printf("3 attemps used, authencation failed. logging out");
+    printf("Authentication Failed for 3 attempts. Client will shut down.");
     close(sockfd);
     exit(1); // terminate the client as requested
 
 auth_success:
-    printf("authencation succeded");
+    printf("Authentication is successful\n");
 
     while (1)
     {
-        //resolve stdin with pervious scanf, then, read stdin with space
-        // credit to https://www.includehelp.com/c/c-program-to-read-string-with-spaces-using-scanf-function.aspx
-        scanf("%c",&temp);  
-        printf("Please enter the course code to query\n");
-        scanf("%[^\n]", course);
-        printf("%s\n", course);
+        // resolve stdin with pervious scanf, then, read stdin with space
+        //  credit to https://www.includehelp.com/c/c-program-to-read-string-with-spaces-using-scanf-function.aspx
+        scanf("%c", &temp);
+        printf("Please enter the course code to query:\n");
+        scanf("%[^\n]", course); //compitable with the whitespace in multi course query
         if (strstr(course, " ") == NULL) // single query
         {
-            printf("Please enter the category (Credit/Professor/Days/Coursename)\n");
-            scanf("%s", category);
+            printf("Please enter the category (Credit/Professor/Days/CourseName)\n");
+            scanf("%c", &temp);
+            scanf("%[^\n]", category);  
             strcpy(TCP_request_buf, course);
             strcat(TCP_request_buf, ",");
             strcat(TCP_request_buf, category);
@@ -164,15 +169,27 @@ auth_success:
                 perror("auth request");
                 exit(0);
             }
+            printf("%s sent a request to the main server.\n", username);
 
             if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1)
             {
                 perror("auth recv");
                 exit(1);
             }
+            printf("The client received the response from the Main server using TCP over port %s.\n", TCP_port);
             buf[numbytes] = '\0';
-            printf("%s\n", buf);
-            // TODO add course not found
+            if (strcmp(buf, "course_not_found") == 0)
+            {
+                printf("Didn't find the course: %s\n", course);
+            }
+            else if (strcmp(buf, "category_not_found") == 0)
+            {
+                printf("Didn't find the catrgoty: %s\n", category);
+            }
+            else
+            {
+                printf("The %s of %s is %s\n", course, category, buf);
+            }
         }
         else
         { // multiple query
@@ -182,6 +199,7 @@ auth_success:
                 perror("auth request");
                 exit(0);
             }
+            printf("%s sent a request with multiple CourseCode to the main server.\n", username);
 
             if ((numbytes = recv(sockfd, buf, MAXDATASIZE - 1, 0)) == -1)
             {
@@ -189,8 +207,10 @@ auth_success:
                 exit(1);
             }
             buf[numbytes] = '\0';
+            printf("CourseCode: Credits, Professor, Days, Course Name\n");
             printf("%s\n", buf);
         }
+        printf("-----Start a new request-----\n");
     }
 
     printf("client: received '%s'\n", buf);
