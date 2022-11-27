@@ -26,9 +26,9 @@
 
 #define TCP_port "25048"
 #define UDP_port_M "24048"
-#define UDP_port_C "21048"
-#define UDP_port_CS "22048"
-#define UDP_port_EE "23048"
+#define UDP_port_C 21048
+#define UDP_port_CS 22048
+#define UDP_port_EE 23048
 #define BACKLOG 5
 #define MAXBUFFER 5000
 
@@ -177,29 +177,22 @@ int main()
     char temp_course_code[10], *temp_course_buff, *username_buff, *temp_category_buff;
 
     // the following variables are for UDP CS connections
-    int sockfd_udp_cs;
-    struct addrinfo hints_udp_cs, *serverinfo_udp_cs, *p_udp_cs;
-    int rv_udp_cs;
     int numbytes_udp_cs;
     char multi_query_list_cs[MAXBUFFER];
 
     // the following variables are for UDP EE connections
-    int sockfd_udp_ee;
-    struct addrinfo hints_udp_ee, *serverinfo_udp_ee, *p_udp_ee;
-    int rv_udp_ee;
     int numbytes_udp_ee;
     char multi_query_list_ee[MAXBUFFER];
 
     // the following variables are for UDP auth connections
-    int sockfd_udp_auth;
-    struct addrinfo hints_udp_auth, *serverinfo_udp_auth, *p_udp_auth;
-    int rv_udp_auth;
     int numbytes_udp_auth;
     char uncrypt_auth_str[150] = "\0", crypt_auth_str[150] = "";
-    struct sockaddr_storage server_addr_C;
-    socklen_t addr_len;
-    addr_len = sizeof server_addr_C;
 
+    // the following vairables are for single udp socket
+    int sockfd_udp, addr_len;
+    struct sockaddr_in auth_addr, cs_addr, ee_addr;
+
+    // the tcp socket setup is from beej's code
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
@@ -276,87 +269,31 @@ int main()
             close(sockfd);
             sockfd = -1;
 
-            // start UDP connection to CS server
-            memset(&hints_udp_cs, 0, sizeof hints_udp_cs);
-            hints_udp_cs.ai_family = AF_INET;
-            hints_udp_cs.ai_socktype = SOCK_DGRAM;
-            if ((rv_udp_cs = getaddrinfo("localhost", UDP_port_CS,
-                                         &hints_udp_cs, &serverinfo_udp_cs)) != 0)
+            // setting up single udp socket following geeksforgeeks and beej's code
+            if ((sockfd_udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
             {
-                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv_udp_cs));
+                perror("socket creation failed");
+                exit(EXIT_FAILURE);
             }
 
-            for (p_udp_cs = serverinfo_udp_cs; p_udp_cs != NULL; p_udp_cs->ai_next)
-            {
-                if ((sockfd_udp_cs = socket(p_udp_cs->ai_family, p_udp_cs->ai_socktype,
-                                            p_udp_cs->ai_protocol)) == -1)
-                {
-                    perror("udp_client: socket");
-                    continue;
-                }
-                break;
-            }
+            // setting up other server's socket address
+            memset(&auth_addr, 0, sizeof(auth_addr));
+            memset(&cs_addr, 0, sizeof(cs_addr));
+            memset(&ee_addr, 0, sizeof(ee_addr));
+            auth_addr.sin_port = htons(UDP_port_C);
+            auth_addr.sin_family = AF_INET;
+            auth_addr.sin_addr.s_addr = INADDR_ANY;
 
-            if (p_udp_cs == NULL)
-            {
-                fprintf(stderr, "udp_client: failed to create socket\n");
-                return 2;
-            } // CS UDP connection finish
+            cs_addr.sin_port = htons(UDP_port_CS);
+            cs_addr.sin_family = AF_INET;
+            cs_addr.sin_addr.s_addr = INADDR_ANY;
+            ee_addr.sin_port = htons(UDP_port_EE);
+            ee_addr.sin_family = AF_INET;
+            ee_addr.sin_addr.s_addr = INADDR_ANY;
 
-            // start UDP connection to EE Server
-            memset(&hints_udp_ee, 0, sizeof hints_udp_ee);
-            hints_udp_ee.ai_family = AF_INET;
-            hints_udp_ee.ai_socktype = SOCK_DGRAM;
-            if ((rv_udp_ee = getaddrinfo("localhost", UDP_port_EE,
-                                         &hints_udp_ee, &serverinfo_udp_ee)) != 0)
-            {
-                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv_udp_ee));
-            }
 
-            for (p_udp_ee = serverinfo_udp_ee; p_udp_ee != NULL; p_udp_ee->ai_next)
-            {
-                if ((sockfd_udp_ee = socket(p_udp_ee->ai_family, p_udp_ee->ai_socktype,
-                                            p_udp_ee->ai_protocol)) == -1)
-                {
-                    perror("ee_udp_client: socket");
-                    continue;
-                }
-                break;
-            }
 
-            if (p_udp_ee == NULL)
-            {
-                fprintf(stderr, "ee_udp_client: failed to create socket\n");
-                return 2;
-            } // CS UDP connection finish
-
-            // start UDP connection to auth server
-            memset(&hints_udp_auth, 0, sizeof hints_udp_auth);
-            hints_udp_auth.ai_family = AF_INET;
-            hints_udp_auth.ai_socktype = SOCK_DGRAM;
-            if ((rv_udp_auth = getaddrinfo("localhost", UDP_port_C,
-                                           &hints_udp_auth, &serverinfo_udp_auth)) != 0)
-            {
-                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv_udp_auth));
-            }
-
-            for (p_udp_auth = serverinfo_udp_auth; p_udp_auth != NULL; p_udp_auth->ai_next)
-            {
-                if ((sockfd_udp_auth = socket(p_udp_auth->ai_family, p_udp_auth->ai_socktype,
-                                              p_udp_auth->ai_protocol)) == -1)
-                {
-                    perror("udp_client_auth: socket");
-                    continue;
-                }
-                break;
-            }
-
-            if (p_udp_auth == NULL)
-            {
-                fprintf(stderr, "udp_client_auth: failed to create socket\n");
-                return 2;
-            } // auth UDP connection finish
-
+            //the sendto and recvfrom below are modified based on geekforgeek code and beej's code
             while (1)
             {
             auth_rec:
@@ -377,21 +314,21 @@ int main()
                 username_buff = strtok(temp_buff_in, ",");
                 printf("The main server received the authentication for %s using TCP over port %s.\n", username_buff, TCP_port);
                 strcpy(crypt_auth_str, string_encrypt(uncrypt_auth_str));
-                if ((numbytes_udp_auth = sendto(sockfd_udp_auth, crypt_auth_str, strlen(crypt_auth_str), 0,
-                                                p_udp_auth->ai_addr, p_udp_auth->ai_addrlen)) == -1)
+                if ((numbytes_udp_auth = sendto(sockfd_udp, crypt_auth_str, strlen(crypt_auth_str), 0,
+                                                (const struct sockaddr *) &auth_addr, sizeof(auth_addr))) == -1)
                 {
                     perror("auth_talker: sendto");
                     exit(1);
                 }
                 printf("The main server sent an authentication request to serverC.\n");
-                if ((numbytes_udp_auth = recvfrom(sockfd_udp_auth, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
-                                                  (struct sockaddr *)&server_addr_C, &addr_len)) == -1)
+                if ((numbytes_udp_auth = recvfrom(sockfd_udp, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
+                                                  (struct sockaddr *) &auth_addr, &addr_len)) == -1)
                 {
                     perror("recvfrom");
                     exit(1);
                 }
                 buff_out[numbytes_udp_auth] = '\0';
-                printf("The main server received the result of the authentication request from ServerC using UDP over port %s\n", UDP_port_C);
+                printf("The main server received the result of the authentication request from ServerC using UDP over port %d\n", UDP_port_C);
                 if (send(new_fd, buff_out, strlen(buff_out), 0) == -1)
                 {
                     perror("auth request");
@@ -428,21 +365,21 @@ int main()
                     printf("The main server received from %s to query course %s about %s using TCP over port %s.\n", username_buff, temp_course_buff, temp_category_buff, TCP_port);
                     if (strstr(buff_in, "CS") != NULL)
                     {
-                        if ((numbytes_udp_cs = sendto(sockfd_udp_cs, buff_in, strlen(buff_in), 0,
-                                                      p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
+                        if ((numbytes_udp_cs = sendto(sockfd_udp, buff_in, strlen(buff_in), 0,
+                                                      (const struct sockaddr *) &cs_addr, sizeof(cs_addr))) == -1)
                         {
                             perror("cs_talker: sendto");
                             exit(1);
                         }
                         printf("The main server sent a request to serverCS.");
 
-                        if ((numbytes_udp_cs = recvfrom(sockfd_udp_cs, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
-                                                        (struct sockaddr *)&server_addr_C, &addr_len)) == -1)
+                        if ((numbytes_udp_cs = recvfrom(sockfd_udp, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
+                                                        (struct sockaddr *)&cs_addr, &addr_len)) == -1)
                         {
                             perror("recvfrom");
                             exit(1);
                         }
-                        printf("The main server received the response from serverCS using UDP over port %s.\n", UDP_port_CS);
+                        printf("The main server received the response from serverCS using UDP over port %d.\n", UDP_port_CS);
                         buff_out[numbytes_udp_cs] = '\0';
 
                         if (send(new_fd, buff_out, strlen(buff_out), 0) == -1)
@@ -454,21 +391,21 @@ int main()
                     }
                     else if (strstr(buff_in, "EE") != NULL)
                     {
-                        if ((numbytes_udp_ee = sendto(sockfd_udp_ee, buff_in, strlen(buff_in), 0,
-                                                      p_udp_ee->ai_addr, p_udp_ee->ai_addrlen)) == -1)
+                        if ((numbytes_udp_ee = sendto(sockfd_udp, buff_in, strlen(buff_in), 0,
+                                                      (const struct sockaddr *) &ee_addr, sizeof(ee_addr))) == -1)
                         {
                             perror("ee_talker: sendto");
                             exit(1);
                         }
                         printf("The main server sent a request to serverEE.");
 
-                        if ((numbytes_udp_ee = recvfrom(sockfd_udp_ee, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
-                                                        (struct sockaddr *)&server_addr_C, &addr_len)) == -1)
+                        if ((numbytes_udp_ee = recvfrom(sockfd_udp, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
+                                                        (struct sockaddr *)&ee_addr, &addr_len)) == -1)
                         {
                             perror("recvfrom");
                             exit(1);
                         }
-                        printf("The main server received the response from serverCS using UDP over port %s.\n", UDP_port_EE);
+                        printf("The main server received the response from serverCS using UDP over port %d.\n", UDP_port_EE);
                         buff_out[numbytes_udp_ee] = '\0';
 
                         if (send(new_fd, buff_out, strlen(buff_out), 0) == -1)
@@ -538,16 +475,16 @@ int main()
                     }
 
                     printf("%s | %s | %s\n", multi_query_list_cs, multi_query_list_ee, buff_out);
-                    if ((numbytes_udp_cs = sendto(sockfd_udp_cs, multi_query_list_cs, strlen(multi_query_list_cs), 0,
-                                                  p_udp_cs->ai_addr, p_udp_cs->ai_addrlen)) == -1)
+                    if ((numbytes_udp_cs = sendto(sockfd_udp, multi_query_list_cs, strlen(multi_query_list_cs), 0,
+                                                  (const struct sockaddr *) &cs_addr, sizeof(cs_addr))) == -1)
                     {
                         perror("cs_talker: sendto");
                         exit(1);
                     }
                     printf("cs_talker: sent %d bytes to %s\n", numbytes_udp_cs, "serverCS");
 
-                    if ((numbytes_udp_cs = recvfrom(sockfd_udp_cs, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
-                                                    (struct sockaddr *)&server_addr_C, &addr_len)) == -1)
+                    if ((numbytes_udp_cs = recvfrom(sockfd_udp, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
+                                                    (struct sockaddr *)&cs_addr, &addr_len)) == -1)
                     {
                         perror("cs_talker: recvfrom");
                         exit(1);
@@ -555,16 +492,16 @@ int main()
                     printf("CS group received\n");
                     strcat(buff_out, temp_buff_out);
 
-                    if ((numbytes_udp_ee = sendto(sockfd_udp_ee, multi_query_list_ee, strlen(multi_query_list_ee), 0,
-                                                  p_udp_ee->ai_addr, p_udp_ee->ai_addrlen)) == -1)
+                    if ((numbytes_udp_ee = sendto(sockfd_udp, multi_query_list_ee, strlen(multi_query_list_ee), 0,
+                                                  (const struct sockaddr *) &ee_addr, sizeof(cs_addr))) == -1)
                     {
                         perror("ee_talker: sendto");
                         exit(1);
                     }
                     printf("ee_talker: sent %d bytes to %s\n", numbytes_udp_ee, "serverEE");
 
-                    if ((numbytes_udp_ee = recvfrom(sockfd_udp_ee, temp_buff_out, MAXBUFFER - 1, MSG_CONFIRM,
-                                                    (struct sockaddr *)&server_addr_C, &addr_len)) == -1)
+                    if ((numbytes_udp_ee = recvfrom(sockfd_udp, temp_buff_out, MAXBUFFER - 1, MSG_CONFIRM,
+                                                    (struct sockaddr *)&ee_addr, &addr_len)) == -1)
                     {
                         perror("ee_talker: recvfrom");
                         exit(1);
@@ -611,12 +548,7 @@ int main()
                     printf(" group query sent to client\n");
                 }
             };
-            freeaddrinfo(serverinfo_udp_auth);
-            freeaddrinfo(serverinfo_udp_cs);
-            freeaddrinfo(serverinfo_udp_ee); // cannot be freed early but why
-            close(sockfd_udp_cs);
-            close(sockfd_udp_auth);
-            close(sockfd_udp_ee);
+            close(sockfd_udp);
             close(new_fd);
             printf("socket closed");
             exit(0);

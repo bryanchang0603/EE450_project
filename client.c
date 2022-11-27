@@ -47,10 +47,19 @@ int main()
     char s[INET6_ADDRSTRLEN];
     char temp;
 
+    // the following variable is from Piazza for getting client's dynamic port number
+    unsigned int clientPort;
+    struct sockaddr_in clinetAddress;
+    bzero(&clinetAddress, sizeof(clinetAddress));
+    clinetAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
+    socklen_t len = sizeof(clinetAddress);
+    char ipAddress[INET_ADDRSTRLEN];
+
+    memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
-    if ((rv = getaddrinfo("localhost", TCP_port, &hints, &serverinfo)) == -1)
+    if ((rv = getaddrinfo("127.0.0.1", TCP_port, &hints, &serverinfo)) == -1)
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
@@ -75,10 +84,15 @@ int main()
     if (p == NULL)
     {
         fprintf(stderr, "client: failed to bind \n");
-        // exit(1);
+        exit(1);
     }
 
+    if(getsockname(sockfd, (struct sockaddr *)&clinetAddress, &len)!= 0){
+        perror("getsockname");
+    }
+    clientPort = ntohs(clinetAddress.sin_port);
     inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
+
     // printf("client: connecting to %s\n", s);
     freeaddrinfo(serverinfo); // all done with this structure
 
@@ -123,7 +137,7 @@ int main()
             perror("auth recv");
             exit(1);
         }
-        printf("%s received the result of authentication using TCP over port %s. ", username, TCP_port);
+        printf("%s received the result of authentication using TCP over port %u. \n", username, clientPort);
         buf[numbytes] = '\0';
         if (strcmp(buf, "password mismatch") == 0)
         {
@@ -154,12 +168,12 @@ auth_success:
         //  credit to https://www.includehelp.com/c/c-program-to-read-string-with-spaces-using-scanf-function.aspx
         scanf("%c", &temp);
         printf("Please enter the course code to query:\n");
-        scanf("%[^\n]", course); //compitable with the whitespace in multi course query
+        scanf("%[^\n]", course);         // compitable with the whitespace in multi course query
         if (strstr(course, " ") == NULL) // single query
         {
             printf("Please enter the category (Credit/Professor/Days/CourseName)\n");
             scanf("%c", &temp);
-            scanf("%[^\n]", category);  
+            scanf("%[^\n]", category);
             strcpy(TCP_request_buf, course);
             strcat(TCP_request_buf, ",");
             strcat(TCP_request_buf, category);
@@ -176,7 +190,7 @@ auth_success:
                 perror("auth recv");
                 exit(1);
             }
-            printf("The client received the response from the Main server using TCP over port %s.\n", TCP_port);
+            printf("The client received the response from the Main server using TCP over port %u.\n", clientPort);
             buf[numbytes] = '\0';
             if (strcmp(buf, "course_not_found") == 0)
             {
