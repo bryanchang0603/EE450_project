@@ -31,7 +31,7 @@ max length of username and password cannot exceed 50 characters. Otherwise buffe
   5-50 character. complete by pressing Enter. do not contain space in the input, otherwise client will fail but not terminate <br />
   course query
   accept both single course query and multiple course query. courses in multiple course query nees to be splited by ' ', whitespace. <br />
-    #### multi course query <br />
+    multi course query <br />
       course must start with "EE" or "CS". serverM will not pass and other courses back to serverCS nor serverEE and return course not found <br />
       if duplicated courses are enteres, the course info will be displayed firat time it show up in the multi course query <br />
       if course is not found, system will coutput course not found <br />
