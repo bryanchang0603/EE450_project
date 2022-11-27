@@ -25,7 +25,7 @@ max length of username and password cannot exceed 50 characters. Otherwise buffe
 
 ##client:
   ###I/O handling:
-  ####username: 5-50 character. complete by pressing Enter. do not contain space in the input, otherwise client will fail but not terminate \<br>
+  ####username: 5-50 character. complete by pressing Enter. do not contain space in the input, otherwise client will fail but not terminate <br>
   ####password: 5-50 character. complete by pressing Enter. do not contain space in the input, otherwise client will fail but not terminate \<br>
   ####course query: accept both single course query and multiple course query. courses in multiple course query nees to be splited by ' ', whitespace. \<br>
     #####multi course query
