@@ -164,6 +164,8 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main()
 {
+
+    // some of the vairables copied for beej's code
     int sockfd, new_fd; // listen on sock_fd, new connection of fd
     struct addrinfo hints, *serverinfo, *p;
     struct sockaddr_storage client_addr;
@@ -249,12 +251,14 @@ int main()
     }
 
     printf("The main server is up and running.\n");
+    // beej's TCP server setup finish
 
     while (1)
     {
         sin_size = sizeof client_addr;
 
         // accepting incomming connect
+        // copied from beej's code for child TCP server socket
         new_fd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
         if (new_fd == -1)
         {
@@ -277,6 +281,7 @@ int main()
             }
 
             // setting up other server's socket address
+            // Idea received from geekforgeek
             memset(&auth_addr, 0, sizeof(auth_addr));
             memset(&cs_addr, 0, sizeof(cs_addr));
             memset(&ee_addr, 0, sizeof(ee_addr));
@@ -291,15 +296,17 @@ int main()
             ee_addr.sin_family = AF_INET;
             ee_addr.sin_addr.s_addr = INADDR_ANY;
 
-
-
-            //the sendto and recvfrom below are modified based on geekforgeek code and beej's code
+            // the sendto, send, recv, and recvfrom below are modified based on geekforgeek code and beej's code
+            //  the authencation process at server side
             while (1)
             {
             auth_rec:
+                // initalize variables to empty
                 strcpy(uncrypt_auth_str, "\0");
                 memset(crypt_auth_str, 0, sizeof crypt_auth_str);
                 memset(temp_buff_in, 0, sizeof temp_buff_in);
+
+                // receive username & password from client
                 if ((numbytes_udp_auth = recv(new_fd, uncrypt_auth_str, MAXBUFFER - 1, 0)) == -1)
                 {
                     perror("auth recv");
@@ -309,26 +316,33 @@ int main()
                 {
                     goto auth_rec;
                 }
+
+                // encypt the received password and send to serverC
                 uncrypt_auth_str[numbytes_udp_auth] = '\0';
                 strcpy(temp_buff_in, uncrypt_auth_str);
-                username_buff = strtok(temp_buff_in, ",");
+                username_buff = strtok(temp_buff_in, ","); // learnt from geekforgeek
                 printf("The main server received the authentication for %s using TCP over port %s.\n", username_buff, TCP_port);
                 strcpy(crypt_auth_str, string_encrypt(uncrypt_auth_str));
+                printf("%s\n", crypt_auth_str);
                 if ((numbytes_udp_auth = sendto(sockfd_udp, crypt_auth_str, strlen(crypt_auth_str), 0,
-                                                (const struct sockaddr *) &auth_addr, sizeof(auth_addr))) == -1)
+                                                (const struct sockaddr *)&auth_addr, sizeof(auth_addr))) == -1)
                 {
                     perror("auth_talker: sendto");
                     exit(1);
                 }
                 printf("The main server sent an authentication request to serverC.\n");
+
+                // receive auth result from serverC
                 if ((numbytes_udp_auth = recvfrom(sockfd_udp, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
-                                                  (struct sockaddr *) &auth_addr, &addr_len)) == -1)
+                                                  (struct sockaddr *)&auth_addr, &addr_len)) == -1)
                 {
                     perror("recvfrom");
                     exit(1);
                 }
                 buff_out[numbytes_udp_auth] = '\0';
                 printf("The main server received the result of the authentication request from ServerC using UDP over port %d\n", UDP_port_C);
+
+                // send result received from serverC to client
                 if (send(new_fd, buff_out, strlen(buff_out), 0) == -1)
                 {
                     perror("auth request");
@@ -343,6 +357,8 @@ int main()
             };
 
         auth_success:
+            // the query process
+            // the sendto, send, recv, and recvfrom below are modified based on geekforgeek code and beej's code
             while (1)
             {
             query_start:
@@ -363,16 +379,18 @@ int main()
                     temp_course_buff = strtok(temp_buff_in, ",");
                     temp_category_buff = strtok(NULL, ",");
                     printf("The main server received from %s to query course %s about %s using TCP over port %s.\n", username_buff, temp_course_buff, temp_category_buff, TCP_port);
-                    if (strstr(buff_in, "CS") != NULL)
+
+                    if (strstr(buff_in, "CS") != NULL) // checking if is CS, then send to serverCS
                     {
                         if ((numbytes_udp_cs = sendto(sockfd_udp, buff_in, strlen(buff_in), 0,
-                                                      (const struct sockaddr *) &cs_addr, sizeof(cs_addr))) == -1)
+                                                      (const struct sockaddr *)&cs_addr, sizeof(cs_addr))) == -1)
                         {
                             perror("cs_talker: sendto");
                             exit(1);
                         }
                         printf("The main server sent a request to serverCS.");
 
+                        // receive single query result from serverCS
                         if ((numbytes_udp_cs = recvfrom(sockfd_udp, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
                                                         (struct sockaddr *)&cs_addr, &addr_len)) == -1)
                         {
@@ -382,6 +400,7 @@ int main()
                         printf("The main server received the response from serverCS using UDP over port %d.\n", UDP_port_CS);
                         buff_out[numbytes_udp_cs] = '\0';
 
+                        // send result to client
                         if (send(new_fd, buff_out, strlen(buff_out), 0) == -1)
                         {
                             perror("auth request");
@@ -389,16 +408,17 @@ int main()
                         }
                         printf("The main server sent the query information to the client.\n");
                     }
-                    else if (strstr(buff_in, "EE") != NULL)
+                    else if (strstr(buff_in, "EE") != NULL) // checking if is CS, then send to serverCS
                     {
                         if ((numbytes_udp_ee = sendto(sockfd_udp, buff_in, strlen(buff_in), 0,
-                                                      (const struct sockaddr *) &ee_addr, sizeof(ee_addr))) == -1)
+                                                      (const struct sockaddr *)&ee_addr, sizeof(ee_addr))) == -1)
                         {
                             perror("ee_talker: sendto");
                             exit(1);
                         }
                         printf("The main server sent a request to serverEE.");
 
+                        // receive single query result from serverCS
                         if ((numbytes_udp_ee = recvfrom(sockfd_udp, buff_out, MAXBUFFER - 1, MSG_CONFIRM,
                                                         (struct sockaddr *)&ee_addr, &addr_len)) == -1)
                         {
@@ -408,6 +428,7 @@ int main()
                         printf("The main server received the response from serverCS using UDP over port %d.\n", UDP_port_EE);
                         buff_out[numbytes_udp_ee] = '\0';
 
+                        // send result to client
                         if (send(new_fd, buff_out, strlen(buff_out), 0) == -1)
                         {
                             perror("tcp send");
@@ -415,7 +436,7 @@ int main()
                         }
                         printf("The main server sent the query information to the client.\n");
                     }
-                    else
+                    else // course does not contain "CS" or "EE", will not send query to back server
                     {
                         strcpy(buff_out, "course_not_found");
                         if (send(new_fd, buff_out, strlen(buff_out), 0) == -1)
@@ -428,6 +449,8 @@ int main()
                 }
                 else // multi course query
                 {
+
+                    // initalize variables
                     course_code_index = 0;
                     memset(course_code_list, 0, sizeof(course_code_list));
                     memset(multi_query_list_cs, 0, sizeof(multi_query_list_cs));
@@ -435,11 +458,15 @@ int main()
                     memset(temp_buff_out, 0, sizeof(temp_buff_out));
                     memset(buff_out, 0, sizeof(buff_out));
                     memset(buff_out_ordered, 0, sizeof(buff_out_ordered));
+
+                    // split received courses to CS course, EE course, other courses
                     temp_course_buff = strtok(buff_in, " ");
                     while (temp_course_buff != NULL)
                     {
                         memset(temp_course_code, 0, sizeof(temp_course_code));
                         strcpy(temp_course_code, temp_course_buff);
+
+                        // store EE course to EE query list
                         if (strstr(temp_course_code, "EE") != NULL)
                         {
                             if (strstr(multi_query_list_ee, temp_course_code) == NULL)
@@ -453,6 +480,7 @@ int main()
                             }
                         }
 
+                        // store CS course to CS query list
                         else if (strstr(temp_course_code, "CS") != NULL)
                         {
                             if (strstr(multi_query_list_cs, temp_course_code) == NULL)
@@ -465,6 +493,7 @@ int main()
                                 course_code_index += 1;
                             }
                         }
+                        // invalid course category, append course_not_found prompt to buffer
                         else
                         {
                             strcat(temp_buff_out, "course did not found:");
@@ -475,8 +504,11 @@ int main()
                     }
 
                     printf("%s | %s | %s\n", multi_query_list_cs, multi_query_list_ee, buff_out);
+
+                    //send one udp message to serverCS and one udp message to serverEE
+                    // received result will be stored in buff_out
                     if ((numbytes_udp_cs = sendto(sockfd_udp, multi_query_list_cs, strlen(multi_query_list_cs), 0,
-                                                  (const struct sockaddr *) &cs_addr, sizeof(cs_addr))) == -1)
+                                                  (const struct sockaddr *)&cs_addr, sizeof(cs_addr))) == -1)
                     {
                         perror("cs_talker: sendto");
                         exit(1);
@@ -489,11 +521,11 @@ int main()
                         perror("cs_talker: recvfrom");
                         exit(1);
                     }
-                    printf("CS group received\n");
+                    printf("CS group result received\n");
                     strcat(buff_out, temp_buff_out);
 
                     if ((numbytes_udp_ee = sendto(sockfd_udp, multi_query_list_ee, strlen(multi_query_list_ee), 0,
-                                                  (const struct sockaddr *) &ee_addr, sizeof(cs_addr))) == -1)
+                                                  (const struct sockaddr *)&ee_addr, sizeof(cs_addr))) == -1)
                     {
                         perror("ee_talker: sendto");
                         exit(1);
@@ -506,7 +538,7 @@ int main()
                         perror("ee_talker: recvfrom");
                         exit(1);
                     }
-                    printf("EE group received\n");
+                    printf("EE group result received\n");
 
                     strcat(buff_out, temp_buff_out);
                     buff_out[strlen(buff_out)] = '\0';

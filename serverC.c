@@ -24,6 +24,8 @@
 #define UDP_port_C "21048"
 #define MAXBUFFER 5000
 
+
+//The linked list structure used some code from geekfor geek
 /**
  * @brief The user_node for storing the user information.
  * linked list will be used for storing user information
@@ -32,8 +34,9 @@
  */
 struct user_node
 {
-    char username[50];
-    char password[50];
+    //50 character string need string length 51. round up to 60 
+    char username[60];
+    char password[60];
     struct user_node *next;
 };
 
@@ -49,6 +52,7 @@ struct user_node *current;
 void auth_append_front(char username_in[50], char password_in[50])
 {
     struct user_node *tempuser_node = (struct user_node *)malloc(sizeof(struct user_node));
+    memset(tempuser_node, 0, sizeof(struct user_node));
     strcpy(tempuser_node->username, username_in);
     strcpy(tempuser_node->password, password_in);
     tempuser_node->next = head;
@@ -102,6 +106,7 @@ char *check_username(char *username_in, char *password_in)
     {
         current = temp;
         temp = temp->next;
+        printf("%d||%s||%s\n", strcmp(current->username, username_in),current->username,username_in);
         if (strcmp(current->username, username_in) == 0)
         {
             if (strcmp(current->password, password_in) == 0)
@@ -151,8 +156,8 @@ int main()
         {
             password_buff[strlen(password_buff) - 2] = '\0';
         };
-        // printf("%s  user\n", username_buff);
-        // printf("%s  pass\n", password_buff);
+        printf("%s  user\n", username_buff);
+        printf("%s  pass\n", password_buff);
         auth_append_front(username_buff, password_buff);
     }
     fclose(cred_file);
@@ -195,6 +200,7 @@ int main()
 
     freeaddrinfo(serverinfo);
     printf("The ServerC is up and running using UDP on port 21048.\n");
+    print_all();
 
     addr_len = sizeof client_addr;
     while (1)
@@ -207,14 +213,11 @@ int main()
         }
         printf("The ServerC received an authentication request from the Main Server.\n");
 
-        // printf("listener: got packet from %s\n",
-        //        inet_ntop(client_addr.ss_family,
-        //                  get_in_addr((struct sockaddr *)&client_addr),
-        //                  s, sizeof s));
         request_buff[numbytes] = '\0';
+        printf("%s\n", request_buff);
         username_buff = strtok(request_buff, ",");
         password_buff = strtok(NULL, "");
-        
+
         strcpy(auth_result, check_username(username_buff, password_buff));
         if ((numbytes = sendto(sockfd, auth_result, strlen(auth_result), MSG_CONFIRM,
                                (struct sockaddr *)&client_addr, addr_len)) == -1)
@@ -227,16 +230,5 @@ int main()
 
     close(sockfd);
 
-    // print_all();
-    // result = check_username("eqfiv", "Xl!v7si8w");
-    // printf("%d \n", result);
-    // result = check_username("1", "Xl!2");
-    // printf("%d \n", result);
-    // result = check_username("eqfiv", "Xl!2");
-    // printf("%d \n", result);
-    // result = check_username("vskiv", "gSrxve8@tswmxmz5i");
-    // printf("%d \n", result);
-    // result = check_username("eqf8iv", "Xl!v7si8w");
-    // printf("%d \n", result);
     delete_list();
 }

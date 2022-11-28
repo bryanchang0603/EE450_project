@@ -26,6 +26,7 @@
 
 /**
  * @brief the user_node for storing the course information
+ *     The linked list data structure used some code form geekforgeek
  * @param course_code the course code of the course
  * @param credit the credit of the course. Only integer
  * @param professor the professor of the course
@@ -35,11 +36,11 @@
  */
 struct cs_course_node
 {
-    char course_code[50]; // need to specify the length of this
+    char course_code[50];
     char credit[50];
-    char professor[50];   // need to specify the length
-    char lecture_day[50]; // need to specify the length
-    char course_name[50]; // need to specify the length
+    char professor[100];
+    char lecture_day[50];
+    char course_name[100];
     struct cs_course_node *next;
 };
 
@@ -61,13 +62,13 @@ void delete_list()
  * @brief append the new cs course to the front of the linked list
  *
  * @param course_code_in string. the input course code. length less than 50
- * @param credit_in string. the input course credit. length less than 50
+ * @param credit_in string. the input course credit. length less than 10
  * @param professor_in string. the input professor name. length less than 50
  * @param lecture_day_in string. the input lecture day. length less than 50
  * @param course_name_in string. the input course name. length less than 50
  */
-void CS_append_front(char course_code_in[50], char credit_in[10], char professor_in[50],
-                     char lecture_day_in[50], char course_name_in[50])
+void CS_append_front(char course_code_in[50], char credit_in[10], char professor_in[100],
+                     char lecture_day_in[50], char course_name_in[100])
 {
     struct cs_course_node *temp_cs_node = (struct cs_course_node *)malloc(sizeof(struct cs_course_node));
     strcpy(temp_cs_node->course_code, course_code_in);
@@ -258,7 +259,7 @@ int main(int argc, char *argv[])
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
 
-    // read by lan and store the cs course into the linked list
+    // read by line and store the cs course into the linked list
     while (fgets(cs_course_buffer, 500, cs_file) != NULL)
     {
         // process the line
@@ -278,33 +279,33 @@ int main(int argc, char *argv[])
     };
     fclose(cs_file);
 
-    if (argc == 2)
-    {
-        printf("debug mode\n");
-        if (strcmp(argv[1], "read") == 0) // testing readfile
-        {
-            print_all();
-            test_result = find_course_info("CS100", "Credit");
-            printf("%s\n", test_result);
-            test_result = find_course_info("CS101", "Credit");
-            printf("%s\n", test_result);
-            test_result = find_course_info("CS100", "credit");
-            printf("%s\n", test_result);
-            test_result = find_course_info("CS100", "Professor");
-            printf("%s\n", test_result);
-            test_result = find_course_info("CS435", "Days");
-            printf("%s\n", test_result);
-            test_result = find_course_info("CS356", "CourseName");
-            printf("%s\n", test_result);
+    // if (argc == 2)
+    // {
+    //     printf("debug mode\n");
+    //     if (strcmp(argv[1], "read") == 0) // testing readfile
+    //     {
+    //         print_all();
+    //         test_result = find_course_info("CS100", "Credit");
+    //         printf("%s\n", test_result);
+    //         test_result = find_course_info("CS101", "Credit");
+    //         printf("%s\n", test_result);
+    //         test_result = find_course_info("CS100", "credit");
+    //         printf("%s\n", test_result);
+    //         test_result = find_course_info("CS100", "Professor");
+    //         printf("%s\n", test_result);
+    //         test_result = find_course_info("CS435", "Days");
+    //         printf("%s\n", test_result);
+    //         test_result = find_course_info("CS356", "CourseName");
+    //         printf("%s\n", test_result);
 
-            multi_query_result = multi_course_query("CS100 0 CS310");
-            printf("%s", multi_query_result);
-            free(multi_query_result);
-            // freeing not used pointer
-        }
-    }
+    //         multi_query_result = multi_course_query("CS100 0 CS310");
+    //         printf("%s", multi_query_result);
+    //         free(multi_query_result);
+    //         // freeing not used pointer
+    //     }
+    // }
 
-    // setting up UDP server
+    // setting up UDP server used Beej's code
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
@@ -347,18 +348,14 @@ int main(int argc, char *argv[])
     while (1)
     {
         if ((numbytes = recvfrom(sockfd, request_buff, MAXBUFFER - 1, 0,
-                                 (struct sockaddr *)&client_addr, &addr_len)) == -1)
+                                 (struct sockaddr *)&client_addr, &addr_len)) == -1) // used Beej's code
         {
             perror("recvfrom");
             exit(1);
         }
 
-        // printf("listener: got packet from %s\n",
-        //        inet_ntop(client_addr.ss_family,
-        //                  get_in_addr((struct sockaddr *)&client_addr),
-        //                  s, sizeof s));
         request_buff[numbytes] = '\0';
-        if (strstr(request_buff, ","))
+        if (strstr(request_buff, ",")) // handling single course query
         {
             code_buffer = strtok(request_buff, ",");
             category_buffer = strtok(NULL, "\0");
@@ -366,18 +363,18 @@ int main(int argc, char *argv[])
             printf("listener: truncated string \"%s|%s\"\n", code_buffer, category_buffer);
             strcpy(result_buff, find_course_info(code_buffer, category_buffer));
             if ((numbytes = sendto(sockfd, result_buff, strlen(result_buff), 0,
-                                   (struct sockaddr *)&client_addr, addr_len)) == -1)
+                                   (struct sockaddr *)&client_addr, addr_len)) == -1) // used Beej's code
             {
                 perror("sendto");
                 exit(1);
             }
             printf("The Server EE finished sending the response to the Main Server\n");
         }
-        else
+        else // handling multi query
         {
             strcpy(result_buff, multi_course_query(request_buff));
             if ((numbytes = sendto(sockfd, result_buff, strlen(result_buff), 0,
-                                   (struct sockaddr *)&client_addr, addr_len)) == -1)
+                                   (struct sockaddr *)&client_addr, addr_len)) == -1) // used Beej's code
             {
                 perror("sendto");
                 exit(1);
