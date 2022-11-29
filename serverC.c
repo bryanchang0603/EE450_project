@@ -22,10 +22,10 @@
 #include <sys/wait.h>
 
 #define UDP_port_C "21048"
+#define UDP_port_M 24048
 #define MAXBUFFER 5000
 
-
-//The linked list structure used some code from geekfor geek
+// The linked list structure used some code from geekfor geek
 /**
  * @brief The user_node for storing the user information.
  * linked list will be used for storing user information
@@ -34,7 +34,7 @@
  */
 struct user_node
 {
-    //50 character string need string length 51. round up to 60 
+    // 50 character string need string length 51. round up to 60
     char username[60];
     char password[60];
     struct user_node *next;
@@ -106,7 +106,6 @@ char *check_username(char *username_in, char *password_in)
     {
         current = temp;
         temp = temp->next;
-        printf("%d||%s||%s\n", strcmp(current->username, username_in),current->username,username_in);
         if (strcmp(current->username, username_in) == 0)
         {
             if (strcmp(current->password, password_in) == 0)
@@ -141,7 +140,7 @@ int main()
     struct addrinfo hints, *serverinfo, *p;
     int rv;
     int numbytes;
-    struct sockaddr_storage client_addr;
+    struct sockaddr_in client_addr;
     char request_buff[MAXBUFFER];
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
@@ -156,8 +155,8 @@ int main()
         {
             password_buff[strlen(password_buff) - 2] = '\0';
         };
-        printf("%s  user\n", username_buff);
-        printf("%s  pass\n", password_buff);
+        // printf("%s  user\n", username_buff);
+        // printf("%s  pass\n", password_buff);
         auth_append_front(username_buff, password_buff);
     }
     fclose(cred_file);
@@ -198,9 +197,8 @@ int main()
         return 2;
     }
 
-    freeaddrinfo(serverinfo);
+    // freeaddrinfo(serverinfo);
     printf("The ServerC is up and running using UDP on port 21048.\n");
-    print_all();
 
     addr_len = sizeof client_addr;
     while (1)
@@ -214,13 +212,12 @@ int main()
         printf("The ServerC received an authentication request from the Main Server.\n");
 
         request_buff[numbytes] = '\0';
-        printf("%s\n", request_buff);
         username_buff = strtok(request_buff, ",");
         password_buff = strtok(NULL, "");
 
         strcpy(auth_result, check_username(username_buff, password_buff));
         if ((numbytes = sendto(sockfd, auth_result, strlen(auth_result), MSG_CONFIRM,
-                               (struct sockaddr *)&client_addr, addr_len)) == -1)
+                               (const struct sockaddr *)&client_addr, addr_len)) == -1)
         {
             perror("auth_talker: sendto");
             exit(1);

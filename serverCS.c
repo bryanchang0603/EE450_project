@@ -254,10 +254,11 @@ int main(int argc, char *argv[])
     struct addrinfo hints, *serverinfo, *p;
     int rv;
     int numbytes;
-    struct sockaddr_storage client_addr;
+    struct sockaddr_in client_addr;
     char request_buff[MAXBUFFER], result_buff[MAXBUFFER];
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
+
 
     // read by line and store the cs course into the linked list
     while (fgets(cs_course_buffer, 500, cs_file) != NULL)
@@ -295,7 +296,7 @@ int main(int argc, char *argv[])
     //         printf("%s\n", test_result);
     //         test_result = find_course_info("CS435", "Days");
     //         printf("%s\n", test_result);
-    //         test_result = find_course_info("CS356", "CourseName");
+    //         test_result = find_course_info("CS356", "CourseName");serverinfo
     //         printf("%s\n", test_result);
 
     //         multi_query_result = multi_course_query("CS100 0 CS310");
@@ -353,14 +354,13 @@ int main(int argc, char *argv[])
             perror("recvfrom");
             exit(1);
         }
-
         request_buff[numbytes] = '\0';
         if (strstr(request_buff, ",")) // handling single course query
         {
             code_buffer = strtok(request_buff, ",");
             category_buffer = strtok(NULL, "\0");
             printf("The Server EE received a request from the Main Server about the %s of %s\n", category_buffer, code_buffer);
-            printf("listener: truncated string \"%s|%s\"\n", code_buffer, category_buffer);
+            //printf("listener: truncated string \"%s|%s\"\n", code_buffer, category_buffer);
             strcpy(result_buff, find_course_info(code_buffer, category_buffer));
             if ((numbytes = sendto(sockfd, result_buff, strlen(result_buff), 0,
                                    (struct sockaddr *)&client_addr, addr_len)) == -1) // used Beej's code

@@ -22,6 +22,7 @@
 #include <sys/wait.h>
 
 #define UDP_port_EE "23048"
+#define UDP_port_M 24048
 #define MAXBUFFER 5000
 
 /**
@@ -253,6 +254,7 @@ int main(int argc, char *argv[])
     char request_buff[MAXBUFFER], result_buff[MAXBUFFER];
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
+
 
     // read by line and store the ee course into the linked list
     while (fgets(ee_course_buffer, 500, ee_file) != NULL)
